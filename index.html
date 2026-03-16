@@ -412,10 +412,29 @@ function fbDelete(col, id) {
   .catch(function(e){ setSyncing(false); throw e; });
 }
 
+function fetchTimeout(url, opts, ms) {
+  ms = ms || 8000;
+  return new Promise(function(resolve, reject) {
+    var timer = setTimeout(function() {
+      reject(new Error('Request timed out after ' + (ms/1000) + 's'));
+    }, ms);
+    fetch(url, opts || {}).then(function(r) {
+      clearTimeout(timer);
+      resolve(r);
+    }).catch(function(e) {
+      clearTimeout(timer);
+      reject(e);
+    });
+  });
+}
+
 function fbGetAll(col) {
-  return fetch(_BASE+col+'?key='+_KEY+'&pageSize=500')
+  return fetchTimeout(_BASE+col+'?key='+_KEY+'&pageSize=500')
   .then(function(r){ return r.json(); })
-  .then(function(data){ return (data.documents||[]).map(_fromDoc); });
+  .then(function(data){
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    return (data.documents||[]).map(_fromDoc);
+  });
 }
 
 function fbWhere(col, field, op, value) {
@@ -424,7 +443,7 @@ function fbWhere(col, field, op, value) {
     field:{fieldPath:field}, op:opMap[op]||'EQUAL',
     value:_toVal(value)
   }}}};
-  return fetch('https://firestore.googleapis.com/v1/projects/'+_PID+'/databases/(default)/documents:runQuery?key='+_KEY,{
+  return fetchTimeout('https://firestore.googleapis.com/v1/projects/'+_PID+'/databases/(default)/documents:runQuery?key='+_KEY,{
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify(body)
   }).then(function(r){ return r.json(); })
@@ -445,15 +464,28 @@ function fbBatch(docs_col_data) {
 
 // ═══ AUTO-CONNECT ON PAGE LOAD ═══
 window.addEventListener('load', function() {
-  showConn('Connecting...');
+  showConn('Connecting to Firestore...');
   fbGetAll('medicines')
     .then(function(docs) {
       bootApp();
       if (!docs.length) { seedMedicines(); }
     })
     .catch(function(e) {
-      document.getElementById('conn-txt').textContent = '❌ ' + e.message;
-      console.error(e);
+      var msg = e.message || String(e);
+      document.getElementById('conn-overlay').innerHTML =
+        '<div style="padding:24px 20px;text-align:center">'
+        + '<div style="font-size:32px;margin-bottom:10px">❌</div>'
+        + '<div style="color:#ff8a80;font-size:13px;font-weight:700;margin-bottom:8px">Connection Error</div>'
+        + '<div style="color:#A8C5A0;font-size:11px;word-break:break-all;margin-bottom:16px;background:rgba(0,0,0,.3);padding:8px;border-radius:6px">' + msg + '</div>'
+        + '<div style="color:#A8C5A0;font-size:11px;line-height:1.8;margin-bottom:16px">'
+        + 'Make sure:<br>'
+        + '1. Firestore Rules → <b style="color:var(--AC)">allow read, write: if true</b><br>'
+        + '2. Firestore database is created (not just the project)<br>'
+        + '3. Internet is working'
+        + '</div>'
+        + '<button onclick="location.reload()" style="background:var(--AC);color:var(--PD);border:none;border-radius:10px;padding:12px 24px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;width:100%">🔄 Try Again</button>'
+        + '</div>';
+      console.error('Boot error:', msg);
     });
 });
 
