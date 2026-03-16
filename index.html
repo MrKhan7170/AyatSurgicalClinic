@@ -400,12 +400,13 @@ window.addEventListener('load', function() {
   showConn('Connecting...');
   try {
     initFirebase();
+    // Boot app immediately after first Firestore response — don't wait for seeding
     DB.collection('medicines').limit(1).get()
-      .then(function() {
-        showConn('Loading data...');
-        return seedMedicines();
+      .then(function(snap) {
+        bootApp();
+        // Seed in background only if collection is empty
+        if (snap.empty) { seedMedicines(); }
       })
-      .then(function() { bootApp(); })
       .catch(function(e) {
         document.getElementById('conn-txt').textContent = '❌ Connection failed: ' + e.message;
         console.error(e);
@@ -428,28 +429,29 @@ function bootApp() {
   nav('dash');
 }
 
-// ═══ SEED ═══
+// ═══ SEED (background, batch write — only runs once on first ever open) ═══
 function seedMedicines() {
-  return fbGetAll('medicines').then(function(ex) {
-    if (ex.length>0) return;
-    var s=[
-      {name:'Paracetamol 500mg',category:'Tablet',unit:'Tab',purchasePrice:3,salePrice:5,stock:500,lowStockAlert:50,description:''},
-      {name:'Ibuprofen 400mg',category:'Tablet',unit:'Tab',purchasePrice:5,salePrice:8,stock:300,lowStockAlert:30,description:''},
-      {name:'Amoxicillin 500mg',category:'Capsule',unit:'Cap',purchasePrice:10,salePrice:15,stock:200,lowStockAlert:20,description:''},
-      {name:'Omeprazole 20mg',category:'Capsule',unit:'Cap',purchasePrice:8,salePrice:12,stock:150,lowStockAlert:20,description:''},
-      {name:'Metronidazole 400mg',category:'Tablet',unit:'Tab',purchasePrice:6,salePrice:10,stock:150,lowStockAlert:20,description:''},
-      {name:'Diclofenac 50mg',category:'Tablet',unit:'Tab',purchasePrice:4,salePrice:7,stock:8,lowStockAlert:20,description:''},
-      {name:'Ciprofloxacin 500mg',category:'Tablet',unit:'Tab',purchasePrice:15,salePrice:20,stock:100,lowStockAlert:15,description:''},
-      {name:'Normal Saline 500ml',category:'IV Fluid',unit:'Btl',purchasePrice:60,salePrice:80,stock:50,lowStockAlert:10,description:''},
-      {name:'Dextrose 5% 500ml',category:'IV Fluid',unit:'Btl',purchasePrice:65,salePrice:90,stock:30,lowStockAlert:8,description:''},
-      {name:'Augmentin 625mg',category:'Tablet',unit:'Tab',purchasePrice:25,salePrice:35,stock:80,lowStockAlert:15,description:''},
-      {name:'Surgical Gloves',category:'Surgical Supply',unit:'Pair',purchasePrice:20,salePrice:30,stock:100,lowStockAlert:15,description:''},
-      {name:'Bandage Roll',category:'Surgical Supply',unit:'Roll',purchasePrice:18,salePrice:25,stock:5,lowStockAlert:10,description:''}
-    ];
-    var p=Promise.resolve();
-    s.forEach(function(m){p=p.then(function(){return fbAdd('medicines',m);});});
-    return p;
+  var seeds = [
+    {name:'Paracetamol 500mg',category:'Tablet',unit:'Tab',purchasePrice:3,salePrice:5,stock:500,lowStockAlert:50,description:''},
+    {name:'Ibuprofen 400mg',category:'Tablet',unit:'Tab',purchasePrice:5,salePrice:8,stock:300,lowStockAlert:30,description:''},
+    {name:'Amoxicillin 500mg',category:'Capsule',unit:'Cap',purchasePrice:10,salePrice:15,stock:200,lowStockAlert:20,description:''},
+    {name:'Omeprazole 20mg',category:'Capsule',unit:'Cap',purchasePrice:8,salePrice:12,stock:150,lowStockAlert:20,description:''},
+    {name:'Metronidazole 400mg',category:'Tablet',unit:'Tab',purchasePrice:6,salePrice:10,stock:150,lowStockAlert:20,description:''},
+    {name:'Diclofenac 50mg',category:'Tablet',unit:'Tab',purchasePrice:4,salePrice:7,stock:8,lowStockAlert:20,description:''},
+    {name:'Ciprofloxacin 500mg',category:'Tablet',unit:'Tab',purchasePrice:15,salePrice:20,stock:100,lowStockAlert:15,description:''},
+    {name:'Normal Saline 500ml',category:'IV Fluid',unit:'Btl',purchasePrice:60,salePrice:80,stock:50,lowStockAlert:10,description:''},
+    {name:'Dextrose 5% 500ml',category:'IV Fluid',unit:'Btl',purchasePrice:65,salePrice:90,stock:30,lowStockAlert:8,description:''},
+    {name:'Augmentin 625mg',category:'Tablet',unit:'Tab',purchasePrice:25,salePrice:35,stock:80,lowStockAlert:15,description:''},
+    {name:'Surgical Gloves',category:'Surgical Supply',unit:'Pair',purchasePrice:20,salePrice:30,stock:100,lowStockAlert:15,description:''},
+    {name:'Bandage Roll',category:'Surgical Supply',unit:'Roll',purchasePrice:18,salePrice:25,stock:5,lowStockAlert:10,description:''}
+  ];
+  // Use a batch write — all 12 medicines in ONE single request
+  var batch = DB.batch();
+  seeds.forEach(function(m) {
+    var ref = DB.collection('medicines').doc();
+    batch.set(ref, Object.assign({}, m, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
   });
+  batch.commit().catch(function(e){ console.warn('Seed error:', e); });
 }
 
 // ═══ UTILS ═══
