@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0D2518">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ayat Surgical Clinic</title>
+
+<!-- No external scripts needed — uses Firestore REST API via fetch() -->
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Nunito:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --P:#1B4332;--PL:#2D6A4F;--PD:#0D2518;--AC:#E8D5A3;
+  --OR:#1B4332;--GY:#6B1A35;--DG:#C0392B;--WA:#E67E22;--SU:#27AE60;
+  --BG:#F0EDE8;--CA:#ffffff;--TX:#1a1208;--MU:#6B7280;--BD:#E5E7EB;
+}
+html,body{height:100%}
+body{font-family:'Nunito',sans-serif;background:var(--BG);color:var(--TX);min-height:100vh;max-width:480px;margin:0 auto;overflow-x:hidden}
+
+/* Setup/guide styles removed — not needed */
+
+/* CONNECTING */
+#conn-overlay{position:fixed;inset:0;background:rgba(13,37,24,.93);z-index:900;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#conn-overlay.show{display:flex}
+.cspin{width:42px;height:42px;border:3px solid rgba(232,213,163,.2);border-top-color:var(--AC);border-radius:50%;animation:spin .8s linear infinite}
+.ctxt{color:var(--AC);font-size:14px;font-weight:700}
+
+/* NAV */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--PD);display:none;z-index:200;border-top:1px solid rgba(255,255,255,.07);padding-bottom:env(safe-area-inset-bottom,0)}
+.bnav.show{display:flex}
+.nb{flex:1;border:none;background:none;color:#7AAB8A;cursor:pointer;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;font-size:9px;font-weight:600;border-top:2px solid transparent;transition:all .2s}
+.nb.active{color:var(--AC);border-top-color:var(--AC)}
+.nb .ni{font-size:20px;line-height:1}
+
+/* SYNC DOT */
+#syncdot{position:fixed;top:12px;right:14px;z-index:150;width:9px;height:9px;border-radius:50%;background:var(--SU);box-shadow:0 0 7px var(--SU);display:none}
+#syncdot.on{display:block}
+#syncdot.busy{background:var(--WA);animation:pulse 1s infinite}
+
+/* MAIN */
+#app{padding-bottom:76px;min-height:100vh;display:none}
+#app.show{display:block}
+.swrap{display:flex;justify-content:center;align-items:center;height:60vh}
+.spin{width:34px;height:34px;border:3px solid var(--BD);border-top-color:var(--P);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* PAGE HEADERS */
+.dash-hdr{background:linear-gradient(135deg,var(--PD),var(--P));padding:46px 18px 22px;display:flex;justify-content:space-between;align-items:flex-start}
+.pg-hdr{background:linear-gradient(135deg,var(--PD),var(--P));padding:46px 18px 16px}
+.pg-hdr h2{color:var(--AC);font-family:'Amiri',serif;font-size:20px}
+.brand{display:flex;align-items:center;gap:10px}
+.cres{font-size:26px}
+.cn{font-family:'Amiri',serif;color:var(--AC);font-size:16px;font-weight:700}
+.cs{color:#A8C5A0;font-size:9px;letter-spacing:2px;margin-top:2px}
+.dinfo{color:#A8C5A0;font-size:11px;text-align:right;line-height:1.8}
+.live-b{display:inline-flex;align-items:center;gap:4px;background:rgba(39,174,96,.18);color:#6fcf97;border:1px solid #6fcf97;border-radius:20px;padding:2px 8px;font-size:9px;font-weight:800;letter-spacing:.5px}
+.ldot{width:5px;height:5px;border-radius:50%;background:#6fcf97;animation:pulse 1.5s infinite}
+
+/* STATS */
+.pad{padding:14px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.sc{border-radius:12px;padding:14px 12px}
+.si{font-size:20px;margin-bottom:6px}
+.sv{color:var(--AC);font-size:15px;font-weight:800;margin-bottom:1px}
+.sl{color:rgba(232,213,163,.6);font-size:10px;font-weight:600}
+
+/* DEPT */
+.drow{display:flex;gap:10px;padding:0 14px 14px}
+.dc{flex:1;border-radius:12px;padding:16px 10px;text-align:center}
+.dc.or{background:var(--OR)}.dc.gy{background:var(--GY)}
+.di{font-size:22px;margin-bottom:6px}
+.dct{color:var(--AC);font-size:34px;font-weight:800;line-height:1}
+.dn{color:rgba(232,213,163,.6);font-size:10px;margin-top:3px}
+
+/* COMMON */
+.stitle{font-size:14px;font-weight:800;color:var(--P);margin:14px 0 8px}
+.lcard{background:var(--CA);border-radius:12px;padding:12px 13px;margin-bottom:7px;display:flex;align-items:center;gap:11px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.av{width:38px;height:38px;border-radius:50%;background:rgba(27,67,50,.12);color:var(--P);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
+.li{flex:1;min-width:0}
+.ln{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls{font-size:11px;color:var(--MU);margin-top:1px}
+.abox-wa{background:rgba(230,126,34,.1);border:1.5px solid var(--WA);border-radius:11px;padding:11px 13px;margin-bottom:12px}
+.ar{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px}
+.wb{background:var(--WA);color:#fff;padding:2px 7px;border-radius:9px;font-size:10px;font-weight:700}
+.empty{text-align:center;padding:36px 18px;color:var(--MU);font-size:13px;line-height:2.2}
+.mrbadge{font-size:9px;color:var(--MU);background:#f0f0f0;padding:1px 5px;border-radius:4px;margin-left:4px}
+.dpill{border-radius:5px;padding:3px 7px;font-size:10px;font-weight:700;flex-shrink:0}
+.op{background:rgba(27,67,50,.12);color:var(--OR)}.gp{background:rgba(107,26,53,.12);color:var(--GY)}
+.abadge{font-weight:800;color:var(--P);white-space:nowrap;font-size:13px}
+.green{color:var(--SU)}
+
+/* TABS */
+.tbar{display:flex;background:var(--PD)}
+.tb{flex:1;padding:11px 6px;border:none;background:none;color:#7AAB8A;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.tb.active{color:var(--AC);border-bottom-color:var(--AC)}
+.tc{display:none}.tc.active{display:block}
+
+/* FORMS */
+.fcard{background:var(--CA);border-radius:12px;padding:14px;margin:10px 14px 0;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.ftitle{font-size:13px;font-weight:800;color:var(--P);margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid var(--BD)}
+label{display:block;font-size:10px;font-weight:700;color:var(--MU);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;margin-top:10px}
+label:first-of-type{margin-top:0}
+input,select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--BD);border-radius:9px;font-family:inherit;font-size:13px;background:#FAFAFA;color:var(--TX);outline:none;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--P);background:#fff}
+textarea{resize:vertical;min-height:65px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* BUTTONS */
+.btn{width:100%;padding:13px;margin:13px 0 3px;background:var(--P);color:var(--AC);border:none;border-radius:10px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.btn:disabled{opacity:.5}
+.btn.red{background:var(--DG)}.btn.grn{background:var(--SU)}
+.btn2{padding:10px 18px;background:var(--PL);color:#fff;border:none;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end}
+.ibtn{background:none;border:none;cursor:pointer;font-size:17px;padding:3px 5px}
+.fab{position:fixed;bottom:82px;right:14px;z-index:50;background:var(--P);color:var(--AC);border:none;border-radius:22px;padding:13px 18px;font-family:inherit;font-weight:800;font-size:13px;box-shadow:0 4px 16px rgba(27,67,50,.35);cursor:pointer}
+.wdot{background:var(--WA);color:#fff;border-radius:9px;padding:1px 5px;font-size:9px;font-weight:700;vertical-align:middle;margin-left:3px}
+
+/* MEDICINE */
+.mcard{background:var(--CA);border-radius:12px;padding:13px;margin-bottom:9px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+.mcard.low{border:1.5px solid var(--WA)}
+.mtop{display:flex;justify-content:space-between;align-items:flex-start}
+.mname{font-weight:700;font-size:13px}
+.mmeta{margin-top:3px;font-size:11px;color:var(--MU);display:flex;align-items:center;gap:5px}
+.cbadge{background:rgba(27,67,50,.1);color:var(--P);border-radius:5px;padding:2px 6px;font-size:9px;font-weight:800}
+.mbot{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid var(--BD)}
+.pi{flex:1}.pl{font-size:10px;color:var(--MU)}.pv{font-weight:700;font-size:13px}.pv.g{color:var(--SU)}
+.sbadge{border-radius:8px;padding:5px 9px;text-align:center;min-width:52px}
+.sok{background:rgba(39,174,96,.1);border:1px solid var(--SU)}
+.slow{background:rgba(230,126,34,.1);border:1px solid var(--WA)}
+.sn{font-weight:800;font-size:15px;color:var(--P)}.slow .sn{color:var(--WA)}
+.sl2{font-size:9px;color:var(--MU)}.slow .sl2{color:var(--WA)}
+
+/* CART */
+.qrow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:10px}
+.qctrl{display:flex;align-items:center;gap:10px;margin-top:5px}
+.qctrl button{width:32px;height:32px;border-radius:50%;background:var(--P);color:var(--AC);border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.qctrl span{font-size:18px;font-weight:800;min-width:28px;text-align:center}
+.crow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--BD)}
+.cname{font-weight:700;font-size:12px}.cmeta{font-size:10px;color:var(--MU);margin-top:1px}
+.cright{display:flex;align-items:center;gap:7px}
+.ctot{font-weight:800;font-size:13px;color:var(--P)}
+.tbox{background:var(--BG);border-radius:9px;padding:11px;margin-top:9px}
+.tr{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
+.tr.red{color:var(--DG)}.tr.big{font-size:16px;font-weight:800;color:var(--P);border-top:2px solid var(--BD);margin-top:5px;padding-top:7px}
+
+/* TOKEN */
+.tkcard{display:flex;align-items:center;gap:11px;background:var(--CA);border-radius:12px;padding:11px 13px;margin-bottom:7px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.tkcard.or{border-left:4px solid var(--OR)}.tkcard.gy{border-left:4px solid var(--GY)}
+.tkcircle{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:var(--AC);flex-shrink:0}
+.tkcircle.or{background:var(--OR)}.tkcircle.gy{background:var(--GY)}
+.tki{flex:1}.tkn{font-weight:700;font-size:13px}.tks{font-size:11px;color:var(--MU);margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:5px 12px;border-radius:18px;border:1.5px solid var(--P);background:transparent;color:var(--P);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.chip.active{background:var(--P);color:#fff}
+
+/* SURGERY */
+.sgcard{background:var(--CA);border-radius:12px;padding:13px;margin-bottom:9px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+.sgmeta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:6px 0}
+
+/* FINANCE */
+.dpbtn{background:var(--P);color:var(--AC);border:none;border-radius:9px;padding:11px 18px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;width:100%;margin-bottom:11px}
+.fsum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.fsum.t3{grid-template-columns:1fr 1fr 1fr}
+.fst{background:var(--CA);border-radius:11px;padding:13px 11px;border:1.5px solid var(--BD);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.fst.g{border-color:var(--SU)}.fst.r{border-color:var(--DG)}
+.fl{font-size:10px;color:var(--MU);font-weight:700}
+.fa{font-size:16px;font-weight:800;color:var(--P);margin-top:3px}
+.fst.g .fa{color:var(--SU)}.fst.r .fa{color:var(--DG)}.fa.sm{font-size:12px}
+.nbox{display:flex;justify-content:space-between;align-items:center;border-radius:11px;padding:13px 15px;border:2px solid;margin-bottom:11px}
+.txcard{display:flex;align-items:center;gap:10px;background:var(--CA);border-radius:9px;padding:10px 12px;margin-bottom:6px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+.txi{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0}
+.gbg{background:rgba(39,174,96,.13);color:var(--SU)}.rbg{background:rgba(192,57,43,.1);color:var(--DG)}
+.ta{font-weight:800;font-size:13px;white-space:nowrap;margin-left:auto}
+.ta.g{color:var(--SU)}.ta.r{color:var(--DG)}
+.enote{font-size:12px;color:var(--MU);text-align:center;padding:8px 0 12px}
+.mnav{display:flex;align-items:center;justify-content:space-between;background:var(--P);color:var(--AC);border-radius:10px;padding:9px 15px;margin-bottom:11px;font-weight:800;font-size:14px}
+.mnav button{background:none;border:none;color:var(--AC);font-size:22px;cursor:pointer;line-height:1}
+.togrow{display:flex;border-radius:10px;overflow:hidden;margin-bottom:14px;border:2px solid var(--BD)}
+.togbtn{flex:1;padding:12px;border:none;background:#f5f5f5;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.togbtn.act-r{background:var(--DG);color:#fff}
+.togbtn.act-g{background:var(--SU);color:#fff}
+.bhtog{display:flex;gap:8px;margin-bottom:10px}
+.bhtog button{flex:1;padding:10px;border-radius:8px;border:none;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer}
+.bhtog button.a{background:var(--P);color:#fff}
+.bhtog button:not(.a){background:#eee;color:#555}
+
+/* MODALS */
+#moverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:300}
+.msheet{background:var(--CA);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:18px;max-height:90vh;overflow-y:auto}
+.mhandle{width:38px;height:4px;background:var(--BD);border-radius:2px;margin:0 auto 14px}
+.mtitle{font-size:16px;font-weight:800;color:var(--P);margin-bottom:13px}
+#pmodal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:400;padding:14px}
+.psheet{background:#fff;width:100%;max-width:350px;border-radius:15px;overflow:hidden;max-height:92vh;display:flex;flex-direction:column}
+.phdr{background:var(--PD);color:var(--AC);padding:13px 15px;display:flex;align-items:center;justify-content:space-between}
+.pbody{flex:1;overflow-y:auto;padding:15px}
+.pacts{display:flex;border-top:1px solid var(--BD)}
+.pacts button{flex:1;padding:13px;border:none;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.pacts .cl{background:#f0f0f0;color:#555}
+.pacts .pr{background:var(--P);color:var(--AC)}
+
+/* RECEIPT */
+.rcpt-hdr{text-align:center;background:linear-gradient(135deg,var(--PD),var(--P));color:var(--AC);padding:15px;border-radius:9px 9px 0 0;margin:-15px -15px 14px}
+.rlogo{font-size:26px;margin-bottom:5px}
+.rcn{font-family:'Amiri',serif;font-size:15px;font-weight:700}
+.rcs{font-size:9px;color:#A8C5A0;margin-top:2px;letter-spacing:1px}
+.rtype{text-align:center;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--MU);margin-bottom:11px}
+.tbig{width:92px;height:92px;border-radius:50%;margin:0 auto 11px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.tbig.or{background:var(--OR)}.tbig.gy{background:var(--GY)}
+.tbn{color:var(--AC);font-size:42px;font-weight:800;line-height:1}
+.tbl{color:rgba(232,213,163,.7);font-size:8px;letter-spacing:2px}
+.rdept{text-align:center;font-weight:800;font-size:13px;margin-bottom:13px}
+.otext{color:var(--OR)}.gtext{color:var(--GY)}
+.rdets{background:var(--BG);border-radius:8px;padding:11px;margin-bottom:13px}
+.rdet{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid rgba(0,0,0,.05)}
+.rdet:last-child{border-bottom:none}
+.rdet span:first-child{color:var(--MU)}
+.rdet.red span,.rdet.red{color:var(--DG)}
+.rdet.big{font-size:15px;font-weight:800;color:var(--P)}
+.bih{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3px;font-size:10px;font-weight:700;color:var(--MU);padding:5px 0;border-bottom:2px solid var(--BD);margin-bottom:5px}
+.bir{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3px;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.05)}
+.btots{background:var(--BG);border-radius:8px;padding:9px 11px;margin-top:11px}
+.rftr{text-align:center;font-size:10px;color:var(--MU);font-style:italic;padding-top:11px;border-top:1px dashed var(--BD);margin-top:3px;line-height:1.7}
+
+/* TOAST */
+.toast{position:fixed;bottom:86px;left:50%;transform:translateX(-50%) translateY(18px);background:var(--P);color:var(--AC);padding:11px 22px;border-radius:22px;font-weight:800;font-size:12px;z-index:600;opacity:0;transition:all .3s;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--DG);color:#fff}
+.toast.ok{background:var(--SU);color:#fff}
+
+@media print{
+  /* Default: hide app, show pmodal for token/bill printing */
+  .bnav,#syncdot,.phdr,.pacts,#app,#mainnav{display:none!important}
+  #pmodal{position:static!important;background:none;padding:0;display:block!important}
+  .psheet{max-height:none;border-radius:0;box-shadow:none!important}
+  .pbody{padding:6px}
+  /* Rx prescription printing */
+  #rx-print-area{display:block!important;position:static!important;background:#fff!important}
+  #rx-print-area > div:first-child{display:none!important} /* hide toolbar */
+  #rx-print-area > div:last-child{padding:0!important;background:#fff!important;min-height:unset!important}
+  .rx-a4{box-shadow:none!important;margin:0!important;width:100%!important}
+  .rx-top-blank{height:calc(297mm / 3)!important}
+}
+/* RX PRESCRIPTION PRINT STYLES */
+@media print{
+  #rx-print-area{display:block!important}
+  body{max-width:100%!important;background:#fff!important}
+}
+.rx-print-page{display:none}
+.rx-a4{
+  width:210mm;min-height:297mm;background:#fff;
+  font-family:'Times New Roman',Times,serif;
+  position:relative;box-sizing:border-box;
+}
+/* Top 1/3 is blank — prescription pad header area */
+.rx-top-blank{height:calc(297mm / 3);display:block}
+/* Content starts at 1/3 down */
+.rx-body{
+  padding:6mm 14mm 10mm 14mm;
+  border-top:1.5px solid #333;
+}
+.rx-pat-row{display:flex;gap:18mm;margin-bottom:4mm;font-size:10.5pt}
+.rx-pat-row span{border-bottom:1px solid #999;flex:1;padding-bottom:1mm}
+.rx-pat-label{font-size:9pt;color:#555;margin-bottom:1mm}
+.rx-symbol{font-size:28pt;font-weight:900;color:#1B4332;float:left;line-height:1;margin-right:4mm;margin-top:-1mm}
+.rx-items{clear:both;margin-top:3mm}
+.rx-item{display:flex;align-items:flex-start;margin-bottom:5mm;page-break-inside:avoid}
+.rx-num{font-size:11pt;font-weight:700;min-width:7mm;padding-top:1mm;color:#333}
+.rx-detail{flex:1}
+.rx-mname{font-size:12pt;font-weight:700;color:#111}
+.rx-dose{font-size:10pt;color:#333;margin-top:1mm}
+.rx-dur{font-size:10pt;color:#333}
+.rx-line{border-bottom:1px dashed #ccc;margin:2mm 0}
+.rx-footer{margin-top:8mm;display:flex;justify-content:space-between;align-items:flex-end;font-size:9.5pt}
+.rx-sign{text-align:right}
+.rx-sign-line{border-top:1px solid #333;width:45mm;margin:0 0 1mm auto;display:block}
+.rx-advice{font-size:9pt;color:#555;max-width:120mm;line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- Setup screen removed — credentials hardcoded -->
+<div id="setup-screen" style="display:none"></div>
+
+
+
+<!-- CONNECTING -->
+<div id="conn-overlay" class="show">
+  <div class="cspin"></div>
+  <div class="ctxt" id="conn-txt">Connecting to database...</div>
+</div>
+
+<!-- APP -->
+<div id="app"></div>
+
+<nav class="bnav" id="mainnav">
+  <button class="nb active" data-p="dash" onclick="nav('dash')"><span class="ni">🏠</span>Home</button>
+  <button class="nb" data-p="opd"   onclick="nav('opd')"><span class="ni">🏥</span>OPD</button>
+  <button class="nb" data-p="rx"    onclick="nav('rx')"><span class="ni">📋</span>Rx</button>
+  <button class="nb" data-p="pharm" onclick="nav('pharm')"><span class="ni">💊</span>Pharmacy</button>
+  <button class="nb" data-p="surg"  onclick="nav('surg')"><span class="ni">🔬</span>Surgery</button>
+  <button class="nb" data-p="fin"   onclick="nav('fin')"><span class="ni">📊</span>Finance</button>
+</nav>
+
+<div id="syncdot"></div>
+
+<div id="moverlay" onclick="if(event.target===this)closeMod()">
+  <div class="msheet"><div class="mhandle"></div><div id="mbody"></div></div>
+</div>
+
+<div id="pmodal">
+  <div class="psheet">
+    <div class="phdr">
+      <span id="ptitle" style="font-weight:800;font-size:14px">Receipt</span>
+      <button onclick="closePrint()" style="background:none;border:none;color:var(--AC);font-size:22px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div class="pbody" id="pbody"></div>
+    <div class="pacts">
+      <button class="cl" onclick="closePrint()">✕ Close</button>
+      <button class="pr" onclick="window.print()">🖨️ Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- RX PRINT AREA (hidden, only shown during print) -->
+<div id="rx-print-area" style="display:none;position:fixed;inset:0;z-index:9999;background:#fff;overflow:auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--PD);color:var(--AC)">
+    <span style="font-weight:800;font-size:14px">📋 Prescription Preview</span>
+    <div style="display:flex;gap:8px">
+      <button onclick="window.print()" style="background:var(--AC);color:var(--PD);border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer">🖨️ Print</button>
+      <button onclick="closeRxPrint()" style="background:rgba(255,255,255,.15);color:var(--AC);border:none;border-radius:8px;padding:8px 14px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer">✕ Close</button>
+    </div>
+  </div>
+  <div style="overflow:auto;padding:10px;background:#e8e8e8;min-height:calc(100vh - 50px)">
+    <div id="rx-a4-content" class="rx-a4" style="margin:0 auto;box-shadow:0 4px 20px rgba(0,0,0,.2)"></div>
+  </div>
+</div>
+
+<div id="toast-el" class="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// FIRESTORE REST API — No Firebase SDK, no external scripts
+// Works from local HTML file on Android Chrome
+// ═══════════════════════════════════════════════════════
+var API_KEY  = 'AIzaSyDEWGSkWPLDNjl46-_-ZQhzDF9Us4YJ89U';
+var PROJECT  = 'ayat-clinic';
+var BASE_URL = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents/';
+
+// ── Convert Firestore REST document → plain JS object ──
+function fromFS(doc) {
+  var obj = { _id: doc.name.split('/').pop() };
+  var fields = doc.fields || {};
+  Object.keys(fields).forEach(function(k) {
+    var v = fields[k];
+    if      ('stringValue'    in v) obj[k] = v.stringValue;
+    else if ('integerValue'   in v) obj[k] = Number(v.integerValue);
+    else if ('doubleValue'    in v) obj[k] = Number(v.doubleValue);
+    else if ('booleanValue'   in v) obj[k] = v.booleanValue;
+    else if ('timestampValue' in v) obj[k] = v.timestampValue;
+    else if ('nullValue'      in v) obj[k] = null;
+    else obj[k] = v;
+  });
+  return obj;
+}
+
+// ── Convert plain JS object → Firestore REST fields ──
+function toFS(obj) {
+  var fields = {};
+  Object.keys(obj).forEach(function(k) {
+    if (k === '_id') return;
+    var v = obj[k];
+    if      (v === null || v === undefined)     fields[k] = { nullValue: null };
+    else if (typeof v === 'boolean')            fields[k] = { booleanValue: v };
+    else if (typeof v === 'number') {
+      if (Number.isInteger(v))                  fields[k] = { integerValue: String(v) };
+      else                                      fields[k] = { doubleValue: v };
+    }
+    else if (typeof v === 'string')             fields[k] = { stringValue: v };
+    else                                        fields[k] = { stringValue: String(v) };
+  });
+  return fields;
+}
+
+function apiURL(col, id) {
+  var url = BASE_URL + col;
+  if (id) url += '/' + id;
+  return url + '?key=' + API_KEY;
+}
+
+function setSyncing(v) { var d=document.getElementById('syncdot'); if(d) d.className=v?'on busy':'on'; }
+
+// ADD document (POST → auto ID)
+function fbAdd(col, data) {
+  setSyncing(true);
+  var body = { fields: toFS(Object.assign({}, data, { createdAt: new Date().toISOString() })) };
+  return fetch(BASE_URL + col + '?key=' + API_KEY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) return r.text().then(function(t){ throw new Error(t); });
+    return r.json();
+  }).then(function(doc) {
+    setSyncing(false);
+    return doc.name.split('/').pop();
+  }).catch(function(e){ setSyncing(false); throw e; });
+}
+
+// UPDATE document (PATCH)
+function fbUpdate(col, id, data) {
+  setSyncing(true);
+  var fields = toFS(data);
+  var fieldPaths = Object.keys(fields).map(function(k){ return 'updateMask.fieldPaths=' + k; }).join('&');
+  var url = BASE_URL + col + '/' + id + '?' + fieldPaths + '&key=' + API_KEY;
+  return fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: fields })
+  }).then(function(r) {
+    setSyncing(false);
+    if (!r.ok) return r.text().then(function(t){ throw new Error(t); });
+  }).catch(function(e){ setSyncing(false); throw e; });
+}
+
+// DELETE document
+function fbDelete(col, id) {
+  setSyncing(true);
+  return fetch(BASE_URL + col + '/' + id + '?key=' + API_KEY, { method: 'DELETE' })
+    .then(function(){ setSyncing(false); })
+    .catch(function(e){ setSyncing(false); throw e; });
+}
+
+// GET ALL documents in collection
+function fbGetAll(col) {
+  return fetch(BASE_URL + col + '?key=' + API_KEY + '&pageSize=300')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.documents) return [];
+      return data.documents.map(fromFS);
+    });
+}
+
+// QUERY: where field == value (uses Firestore runQuery)
+function fbWhere(col, field, op, value) {
+  var opMap = { '==': 'EQUAL', '<': 'LESS_THAN', '<=': 'LESS_THAN_OR_EQUAL', '>': 'GREATER_THAN', '>=': 'GREATER_THAN_OR_EQUAL' };
+  var fsOp = opMap[op] || 'EQUAL';
+  var body = {
+    structuredQuery: {
+      from: [{ collectionId: col }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: field },
+          op: fsOp,
+          value: typeof value === 'number'
+            ? (Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value })
+            : { stringValue: value }
+        }
+      }
+    }
+  };
+  var runQueryURL = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents:runQuery?key=' + API_KEY;
+  return fetch(runQueryURL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); })
+  .then(function(rows){
+    if (!Array.isArray(rows)) return [];
+    return rows.filter(function(r){ return r.document; }).map(function(r){ return fromFS(r.document); });
+  });
+}
+
+// ═══ AUTO-CONNECT ON PAGE LOAD ═══
+window.addEventListener('load', function() {
+  showConn('Connecting...');
+  // Test connection then seed then boot
+  fetch(BASE_URL + 'medicines?key=' + API_KEY + '&pageSize=1')
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function() {
+      showConn('Loading data...');
+      return seedMedicines();
+    })
+    .then(function() {
+      bootApp();
+    })
+    .catch(function(e) {
+      document.getElementById('conn-txt').textContent = '❌ Connection failed. Check internet and try again.';
+      console.error(e);
+    });
+});
+
+function showConn(msg) { document.getElementById('conn-txt').textContent=msg||'Connecting...'; document.getElementById('conn-overlay').classList.add('show'); }
+function hideConn() { document.getElementById('conn-overlay').classList.remove('show'); }
+
+function bootApp() {
+  document.getElementById('setup-screen').style.display='none';
+  hideConn();
+  document.getElementById('app').classList.add('show');
+  document.getElementById('mainnav').classList.add('show');
+  document.getElementById('syncdot').classList.add('on');
+  nav('dash');
+}
+
+// ═══ SEED ═══
+function seedMedicines() {
+  return fbGetAll('medicines').then(function(ex) {
+    if (ex.length>0) return;
+    var s=[
+      {name:'Paracetamol 500mg',category:'Tablet',unit:'Tab',purchasePrice:3,salePrice:5,stock:500,lowStockAlert:50,description:''},
+      {name:'Ibuprofen 400mg',category:'Tablet',unit:'Tab',purchasePrice:5,salePrice:8,stock:300,lowStockAlert:30,description:''},
+      {name:'Amoxicillin 500mg',category:'Capsule',unit:'Cap',purchasePrice:10,salePrice:15,stock:200,lowStockAlert:20,description:''},
+      {name:'Omeprazole 20mg',category:'Capsule',unit:'Cap',purchasePrice:8,salePrice:12,stock:150,lowStockAlert:20,description:''},
+      {name:'Metronidazole 400mg',category:'Tablet',unit:'Tab',purchasePrice:6,salePrice:10,stock:150,lowStockAlert:20,description:''},
+      {name:'Diclofenac 50mg',category:'Tablet',unit:'Tab',purchasePrice:4,salePrice:7,stock:8,lowStockAlert:20,description:''},
+      {name:'Ciprofloxacin 500mg',category:'Tablet',unit:'Tab',purchasePrice:15,salePrice:20,stock:100,lowStockAlert:15,description:''},
+      {name:'Normal Saline 500ml',category:'IV Fluid',unit:'Btl',purchasePrice:60,salePrice:80,stock:50,lowStockAlert:10,description:''},
+      {name:'Dextrose 5% 500ml',category:'IV Fluid',unit:'Btl',purchasePrice:65,salePrice:90,stock:30,lowStockAlert:8,description:''},
+      {name:'Augmentin 625mg',category:'Tablet',unit:'Tab',purchasePrice:25,salePrice:35,stock:80,lowStockAlert:15,description:''},
+      {name:'Surgical Gloves',category:'Surgical Supply',unit:'Pair',purchasePrice:20,salePrice:30,stock:100,lowStockAlert:15,description:''},
+      {name:'Bandage Roll',category:'Surgical Supply',unit:'Roll',purchasePrice:18,salePrice:25,stock:5,lowStockAlert:10,description:''}
+    ];
+    var p=Promise.resolve();
+    s.forEach(function(m){p=p.then(function(){return fbAdd('medicines',m);});});
+    return p;
+  });
+}
+
+// ═══ UTILS ═══
+function today(){return new Date().toISOString().split('T')[0];}
+function monthStr(){return today().slice(0,7);}
+function timeNow(){var d=new Date(),h=d.getHours(),m=d.getMinutes(),ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+(m<10?'0':'')+m+' '+ap;}
+function fdate(s){if(!s)return'';var ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];try{var d=new Date(s+'T00:00:00');return(d.getDate()<10?'0':'')+d.getDate()+' '+ms[d.getMonth()]+' '+d.getFullYear();}catch(e){return s;}}
+function uid5(){return String(Date.now()).slice(-5);}
+var CATS=['Tablet','Capsule','Syrup','Injection','IV Fluid','Surgical Supply','Other'];
+var ECATS=['Medicines','Salaries','Utilities','Equipment','Maintenance','Other'];
+var ITYPES=['OPD Consultation','Surgery Fee','Pharmacy','Admission','Lab Test','Other'];
+function toast(msg,type){var t=document.getElementById('toast-el');t.textContent=msg;t.className='toast show '+(type==='error'?'err':'ok');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},3000);}
+function showMod(h){document.getElementById('mbody').innerHTML=h;document.getElementById('moverlay').style.display='flex';}
+function closeMod(){document.getElementById('moverlay').style.display='none';}
+function showPrint(h,ti){document.getElementById('ptitle').textContent=ti;document.getElementById('pbody').innerHTML=h;document.getElementById('pmodal').style.display='flex';}
+function closePrint(){document.getElementById('pmodal').style.display='none';}
+
+// ═══ ROUTER ═══
+var curPage='dash';
+function nav(page) {
+  curPage=page;
+  document.querySelectorAll('.nb').forEach(function(b){b.classList.toggle('active',b.dataset.p===page);});
+  var app=document.getElementById('app');
+  app.innerHTML='<div class="swrap"><div class="spin"></div></div>';
+  if(page==='dash') buildDash().then(function(h){app.innerHTML=h;});
+  else if(page==='opd') {app.innerHTML=buildOPD();}
+  else if(page==='rx') buildRx().then(function(h){app.innerHTML=h;initRx();});
+  else if(page==='pharm') buildPharm().then(function(h){app.innerHTML=h;_allMeds=[];_mcat='All';_msearch='';refreshMeds();});
+  else if(page==='surg') {app.innerHTML=buildSurg();}
+  else if(page==='fin') buildFin().then(function(h){app.innerHTML=h;});
+}
+
+// ═══ DASHBOARD ═══
+function buildDash() {
+  var td=today();
+  return Promise.all([fbWhere('tokens','date','==',td),fbWhere('patients','date','==',td),fbWhere('incomes','date','==',td),fbWhere('expenses','date','==',td),fbGetAll('medicines')]).then(function(r){
+    var toks=r[0],pats=r[1],incs=r[2],exps=r[3],meds=r[4];
+    var income=incs.reduce(function(a,i){return a+i.amount;},0);
+    var expense=exps.reduce(function(a,e){return a+e.amount;},0);
+    var net=income-expense;
+    var or=toks.filter(function(t){return t.department==='Orthopaedic';}).length;
+    var gy=toks.filter(function(t){return t.department==='Gynaecology';}).length;
+    var low=meds.filter(function(m){return m.stock<=m.lowStockAlert;}).sort(function(a,b){return a.stock-b.stock;});
+    var ps=pats.slice().sort(function(a,b){return(b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
+    var h='<div class="dash-hdr"><div class="brand"><span class="cres">☪</span><div><div class="cn">AYAT SURGICAL CLINIC</div><div class="cs">ORTHOPAEDIC &amp; GYNAECOLOGY</div></div></div>'
+      +'<div class="dinfo">'+fdate(td)+'<br><span class="live-b"><span class="ldot"></span>LIVE</span></div></div>'
+      +'<div class="pad"><div class="sgrid">'
+      +'<div class="sc" style="background:#1B4332"><div class="si">👥</div><div class="sv">'+toks.length+'</div><div class="sl">Today\'s Patients</div></div>'
+      +'<div class="sc" style="background:#1a3050"><div class="si">💰</div><div class="sv">Rs.'+Math.round(income).toLocaleString()+'</div><div class="sl">Today\'s Income</div></div>'
+      +'<div class="sc" style="background:#502010"><div class="si">📤</div><div class="sv">Rs.'+Math.round(expense).toLocaleString()+'</div><div class="sl">Today\'s Expenses</div></div>'
+      +'<div class="sc" style="background:'+(net>=0?'#1a4a2a':'#5a1010')+'"><div class="si">📈</div><div class="sv">Rs.'+Math.round(net).toLocaleString()+'</div><div class="sl">Net Balance</div></div>'
+      +'</div><div class="stitle">🏢 Departments Today</div></div>'
+      +'<div class="drow"><div class="dc or"><div class="di">🦴</div><div class="dct">'+or+'</div><div class="dn">Orthopaedic</div></div>'
+      +'<div class="dc gy"><div class="di">🌸</div><div class="dct">'+gy+'</div><div class="dn">Gynaecology</div></div></div>'
+      +'<div class="pad" style="padding-top:0">'
+      +(low.length?'<div class="stitle">⚠️ Low Stock Alert</div><div class="abox-wa">'+low.slice(0,4).map(function(m){return'<div class="ar"><span>⚠️ '+m.name+'</span><span class="wb">'+m.stock+' '+m.unit+' left</span></div>';}).join('')+'</div>':'')
+      +'<div class="stitle">📋 Today\'s OPD Patients</div>'
+      +(ps.length===0?'<div class="empty">👥<br>No patients registered today</div>'
+        :ps.slice(0,8).map(function(p){return'<div class="lcard"><div class="av">'+p.name[0].toUpperCase()+'</div><div class="li"><div class="ln">'+p.name+' <span class="mrbadge">'+p.mrNo+'</span></div><div class="ls">'+p.age+'y • '+p.gender+' • '+p.time+'</div></div><div class="dpill '+(p.department==='Orthopaedic'?'op':'gp')+'">'+(p.department==='Orthopaedic'?'🦴':'🌸')+'</div></div>';}).join(''))
+      +'</div>';
+    return h;
+  });
+}
+
+// ═══ OPD ═══
+function buildOPD(){
+  return '<div class="pg-hdr"><h2>🏥 OPD Registration</h2></div>'
+    +'<div class="tbar"><button class="tb active" onclick="stab(\'reg\',this)">Register Patient</button>'
+    +'<button class="tb" onclick="stab(\'lst\',this);loadOpdList()">Today\'s List</button></div>'
+    +'<div id="tc-reg" class="tc active">'
+    +'<div class="fcard"><div class="ftitle">Patient Information</div>'
+    +'<label>Patient Name *</label><input id="on" type="text" placeholder="Full Name">'
+    +'<div class="r2"><div><label>Age *</label><input id="oa" type="number" placeholder="Years"></div>'
+    +'<div><label>Gender</label><select id="og"><option>Male</option><option>Female</option><option>Other</option></select></div></div>'
+    +'<label>Phone</label><input id="oph" type="tel" placeholder="03XX-XXXXXXX">'
+    +'<label>Address</label><input id="oad" type="text" placeholder="City / Area">'
+    +'<label>Chief Complaint</label><textarea id="oc" rows="2" placeholder="Presenting complaint..."></textarea></div>'
+    +'<div class="fcard"><div class="ftitle">Appointment Details</div>'
+    +'<label>Department</label><select id="odept"><option>Orthopaedic</option><option>Gynaecology</option></select>'
+    +'<label>Consultation Fee (Rs.)</label><input id="ofee" type="number" value="500"></div>'
+    +'<div style="padding:0 14px"><button class="btn" onclick="regPat()">🎟️ Register &amp; Generate Token</button></div>'
+    +'<div style="height:20px"></div></div>'
+    +'<div id="tc-lst" class="tc"><div id="opdlist" style="padding:10px 14px"><div class="swrap"><div class="spin"></div></div></div></div>';
+}
+function loadOpdList(){
+  fbWhere('patients','date','==',today()).then(function(p){
+    p.sort(function(a,b){return(b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
+    var el=document.getElementById('opdlist');if(!el)return;
+    el.innerHTML=p.length===0?'<div class="empty">🏥<br>No patients today</div>'
+      :p.map(function(pt){return'<div class="lcard"><div class="av">'+pt.name[0].toUpperCase()+'</div><div class="li"><div class="ln">'+pt.name+' <span class="mrbadge">'+pt.mrNo+'</span></div><div class="ls">'+pt.age+'y • '+pt.gender+' • '+pt.time+'</div><div class="ls">'+(pt.complaint||'')+'</div></div><div class="dpill '+(pt.department==='Orthopaedic'?'op':'gp')+'">'+(pt.department==='Orthopaedic'?'🦴':'🌸')+'</div></div>';}).join('');
+  });
+}
+function regPat(){
+  var name=document.getElementById('on').value.trim(),age=document.getElementById('oa').value.trim();
+  if(!name||!age){toast('Name and Age are required','error');return;}
+  var btn=document.querySelector('[onclick="regPat()"]');btn.disabled=true;btn.textContent='Saving...';
+  var td=today(),dept=document.getElementById('odept').value,fee=parseFloat(document.getElementById('ofee').value)||500;
+  fbWhere('tokens','date','==',td).then(function(toks){
+    var tkNo=toks.filter(function(t){return t.department===dept;}).length+1;
+    var mrNo='ASC-'+uid5();
+    var pat={mrNo:mrNo,name:name,age:parseInt(age),gender:document.getElementById('og').value,phone:document.getElementById('oph').value.trim(),address:document.getElementById('oad').value.trim(),complaint:document.getElementById('oc').value.trim(),department:dept,date:td,time:timeNow()};
+    return fbAdd('patients',pat).then(function(){
+      var tk={patientName:name,department:dept,tokenNo:tkNo,consultFee:fee,date:td,time:pat.time,mrNo:mrNo};
+      return fbAdd('tokens',tk).then(function(){
+        return fbAdd('incomes',{description:name+' - OPD '+dept,amount:fee,type:'OPD Consultation',date:td}).then(function(){
+          toast('✅ Token #'+tkNo+' generated!');
+          printToken(tk);
+          ['on','oph','oad','oc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+          document.getElementById('oa').value='';document.getElementById('ofee').value='500';
+          btn.disabled=false;btn.textContent='🎟️ Register & Generate Token';
+        });
+      });
+    });
+  }).catch(function(e){toast('Error: '+e.message,'error');btn.disabled=false;btn.textContent='🎟️ Register & Generate Token';});
+}
+
+// ═══ PHARMACY ═══
+function buildPharm(){
+  return fbGetAll('medicines').then(function(meds){
+    var low=meds.filter(function(m){return m.stock<=m.lowStockAlert;});
+    return '<div class="pg-hdr"><h2>💊 Pharmacy</h2></div>'
+      +'<div class="tbar"><button class="tb active" onclick="stab(\'mdb\',this)">Medicine DB'+(low.length?'<span class="wdot">'+low.length+'</span>':'')+'</button>'
+      +'<button class="tb" onclick="stab(\'bil\',this);loadBilling()">Billing</button></div>'
+      +'<div id="tc-mdb" class="tc active">'
+      +'<div style="padding:10px 14px 0"><input id="msrch" type="text" placeholder="🔍 Search medicines..." oninput="filterMeds()" style="width:100%;padding:10px 12px;border:1.5px solid var(--BD);border-radius:9px;font-family:inherit;font-size:13px;background:#fff;outline:none;margin-bottom:8px">'
+      +'<div class="chips">'+['All'].concat(CATS).map(function(c){return'<button class="chip'+(c==='All'?' active':'')+'" onclick="filterMedCat(\''+c+'\',this)">'+c+'</button>';}).join('')+'</div></div>'
+      +'<div id="medlist" style="padding:8px 14px"></div><div style="height:90px"></div>'
+      +'<button class="fab" onclick="showAddMed()">+ Add Medicine</button></div>'
+      +'<div id="tc-bil" class="tc"><div id="bilcont"></div></div>';
+  });
+}
+var _allMeds=[],_mcat='All',_msearch='';
+function refreshMeds(){fbGetAll('medicines').then(function(m){_allMeds=m;applyMedFilter();});}
+function applyMedFilter(){
+  var list=_allMeds;
+  if(_mcat!=='All')list=list.filter(function(m){return m.category===_mcat;});
+  if(_msearch)list=list.filter(function(m){return m.name.toLowerCase().indexOf(_msearch.toLowerCase())>=0;});
+  list=list.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
+  var el=document.getElementById('medlist');if(el)el.innerHTML=renderMeds(list);
+}
+function filterMeds(){_msearch=document.getElementById('msrch').value||'';applyMedFilter();}
+function filterMedCat(c,btn){_mcat=c;document.querySelectorAll('#tc-mdb .chip').forEach(function(x){x.classList.remove('active');});btn.classList.add('active');applyMedFilter();}
+function renderMeds(meds){
+  if(!meds.length)return'<div class="empty">💊<br>No medicines found</div>';
+  return meds.map(function(m){
+    var lo=m.stock<=m.lowStockAlert;
+    return'<div class="mcard'+(lo?' low':'')+'"><div class="mtop"><div><div class="mname">'+m.name+'</div><div class="mmeta"><span class="cbadge">'+m.category+'</span> '+m.unit+'</div></div>'
+      +'<div style="display:flex;gap:3px"><button class="ibtn" onclick=\'showEditMed('+JSON.stringify(m)+')\'>✏️</button>'
+      +'<button class="ibtn" onclick="delMed(\''+m._id+'\')">🗑️</button></div></div>'
+      +'<div class="mbot"><div class="pi"><div class="pl">Buy Price</div><div class="pv">Rs.'+m.purchasePrice+'</div></div>'
+      +'<div class="pi"><div class="pl">Sale Price</div><div class="pv g">Rs.'+m.salePrice+'</div></div>'
+      +'<div class="sbadge '+(lo?'slow':'sok')+'"><div class="sn">'+m.stock+'</div><div class="sl2">'+(lo?'⚠️ LOW':'in stock')+'</div></div></div>'
+      +(m.description?'<div style="font-size:11px;color:var(--MU);margin-top:7px;font-style:italic">'+m.description+'</div>':'')+'</div>';
+  }).join('');
+}
+function showAddMed(med){
+  var e=!!med;
+  showMod('<div class="mtitle">'+(e?'✏️ Edit':'➕ Add')+' Medicine</div>'
+    +'<label>Medicine Name *</label><input id="mn" type="text" value="'+(e?med.name:'')+'" placeholder="e.g. Paracetamol 500mg">'
+    +'<label>Category</label><select id="mcat">'+CATS.map(function(c){return'<option'+(e&&med.category===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select>'
+    +'<label>Unit</label><input id="munit" type="text" value="'+(e?med.unit:'Tab')+'">'
+    +'<div class="r2"><div><label>Purchase Price (Rs.)</label><input id="mbuy" type="number" value="'+(e?med.purchasePrice:'')+'"></div>'
+    +'<div><label>Sale Price (Rs.)</label><input id="msale" type="number" value="'+(e?med.salePrice:'')+'"></div></div>'
+    +'<div class="r2"><div><label>Current Stock</label><input id="mstk" type="number" value="'+(e?med.stock:'')+'"></div>'
+    +'<div><label>Low Stock Alert</label><input id="malt" type="number" value="'+(e?med.lowStockAlert:10)+'"></div></div>'
+    +'<label>Description</label><textarea id="mdesc" rows="2">'+(e?med.description:'')+'</textarea>'
+    +'<button class="btn" onclick="saveMed(\''+(e?med._id:'')+'\')">'+(e?'Update':'Add')+' Medicine</button>');
+}
+function showEditMed(med){showAddMed(med);}
+function saveMed(id){
+  var name=document.getElementById('mn').value.trim();
+  if(!name){toast('Name required','error');return;}
+  var data={name:name,category:document.getElementById('mcat').value,unit:document.getElementById('munit').value.trim()||'Tab',
+    purchasePrice:parseFloat(document.getElementById('mbuy').value)||0,salePrice:parseFloat(document.getElementById('msale').value)||0,
+    stock:parseInt(document.getElementById('mstk').value)||0,lowStockAlert:parseInt(document.getElementById('malt').value)||10,
+    description:document.getElementById('mdesc').value.trim()};
+  (id?fbUpdate('medicines',id,data):fbAdd('medicines',data))
+    .then(function(){closeMod();toast(id?'✅ Updated!':'✅ Added!');refreshMeds();})
+    .catch(function(e){toast('Error: '+e.message,'error');});
+}
+function delMed(id){if(!confirm('Delete this medicine?'))return;fbDelete('medicines',id).then(function(){toast('Deleted');refreshMeds();});}
+
+// BILLING
+var cart=[],bqty=1,_bilMeds=[],_selMed=null;
+function loadBilling(){
+  var el=document.getElementById('bilcont');if(!el)return;
+  fbGetAll('medicines').then(function(meds){
+    _bilMeds=meds.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
+    el.innerHTML='<div style="background:#2D6A4F;display:flex">'
+      +'<button class="tb active" style="color:var(--AC);border-bottom:2px solid var(--AC)" onclick="swBilTab(\'nb\',this)">New Bill</button>'
+      +'<button class="tb" style="color:#9DC4A8" onclick="swBilTab(\'bh\',this);loadBillHist()">Bill History</button></div>'
+      +'<div id="bil-nb"><div class="fcard"><div class="ftitle">Patient Info</div>'
+      +'<label>Patient Name *</label><input id="bpn" type="text" placeholder="Patient Name">'
+      +'<label>MR No. (optional)</label><input id="bpmr" type="text" placeholder="ASC-XXXXX"></div>'
+      +'<div class="fcard"><div class="ftitle">Add Medicine</div>'
+      +'<div style="position:relative">'
+      +'<input id="bmedsrch" type="text" placeholder="🔍 Search medicine name..." autocomplete="off" oninput="filterBilMeds()" onfocus="showBilResults()" style="width:100%;padding:10px 12px;border:1.5px solid var(--BD);border-radius:9px;font-family:inherit;font-size:13px;background:#fff;outline:none">'
+      +'<div id="bilresults" style="display:none;position:absolute;left:0;right:0;top:44px;background:#fff;border:1.5px solid var(--P);border-radius:9px;z-index:99;max-height:210px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.13)"></div>'
+      +'</div>'
+      +'<div id="bmedprev" style="display:none;background:rgba(27,67,50,.07);border:1.5px solid var(--P);border-radius:9px;padding:10px 12px;margin-top:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<div><div id="bmedprev-name" style="font-weight:800;font-size:13px;color:var(--P)"></div>'
+      +'<div id="bmedprev-meta" style="font-size:11px;color:var(--MU);margin-top:2px"></div></div>'
+      +'<button onclick="clearMedSel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--MU);line-height:1">✕</button>'
+      +'</div></div>'
+      +'<div class="qrow" style="margin-top:12px"><div><label>Quantity</label><div class="qctrl"><button onclick="adjQ(-1)">−</button><span id="bqty">1</span><button onclick="adjQ(1)">+</button></div></div>'
+      +'<button class="btn2" onclick="addToCart()">+ Add to Cart</button></div></div>'
+      +'<div id="cartsec" style="display:none" class="fcard"><div class="ftitle">🛒 Cart</div><div id="cartitems"></div>'
+      +'<div style="margin-top:8px"><label>Discount %</label><input id="bdisc" type="number" value="0" oninput="updCart()"></div>'
+      +'<div id="carttot" class="tbox"></div>'
+      +'<button class="btn" onclick="genBill()">🖨️ Generate &amp; Print Bill</button></div></div>'
+      +'<div id="bil-bh" style="display:none"><div style="padding:10px 14px"><div id="bhlist"></div></div></div>'
+      +'<div style="height:20px"></div>';
+    cart=[];bqty=1;_selMed=null;
+    document.addEventListener('click', closeBilResultsOutside);
+  });
+}
+function filterBilMeds(){
+  var q=(document.getElementById('bmedsrch').value||'').trim().toLowerCase();
+  var results=q?_bilMeds.filter(function(m){return m.name.toLowerCase().indexOf(q)>=0;}):_bilMeds;
+  renderBilResults(results);
+}
+function showBilResults(){
+  filterBilMeds();
+  var el=document.getElementById('bilresults');if(el)el.style.display='block';
+}
+function renderBilResults(list){
+  var el=document.getElementById('bilresults');if(!el)return;
+  if(!list.length){el.innerHTML='<div style="padding:12px;text-align:center;color:var(--MU);font-size:12px">No medicines found</div>';el.style.display='block';return;}
+  el.style.display='block';
+  el.innerHTML=list.map(function(m){
+    var lo=m.stock<=m.lowStockAlert,oos=m.stock<=0;
+    return'<div onclick="selectBilMed(\''+m._id+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #f0f0f0;cursor:'+(oos?'not-allowed':'pointer')+';opacity:'+(oos?'0.45':'1')+'">'
+      +'<div><div style="font-weight:700;font-size:13px">'+m.name+'</div>'
+      +'<div style="font-size:10px;color:var(--MU);margin-top:2px"><span style="background:rgba(27,67,50,.1);color:var(--P);border-radius:4px;padding:1px 5px;font-weight:700">'+m.category+'</span></div></div>'
+      +'<div style="text-align:right;flex-shrink:0;margin-left:8px">'
+      +'<div style="font-weight:800;font-size:13px;color:var(--SU)">Rs.'+m.salePrice+'</div>'
+      +'<div style="font-size:10px;font-weight:700;color:'+(lo?'var(--WA)':'var(--MU)')+'">'+m.stock+' '+m.unit+(oos?' ❌':(lo?' ⚠️':''))+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+function selectBilMed(id){
+  var m=null;for(var i=0;i<_bilMeds.length;i++){if(_bilMeds[i]._id===id){m=_bilMeds[i];break;}}
+  if(!m||m.stock<=0){toast('Out of stock','error');return;}
+  _selMed=m;
+  var srch=document.getElementById('bmedsrch');if(srch)srch.value=m.name;
+  var res=document.getElementById('bilresults');if(res)res.style.display='none';
+  var prev=document.getElementById('bmedprev');
+  if(prev){
+    document.getElementById('bmedprev-name').textContent=m.name;
+    document.getElementById('bmedprev-meta').textContent='Rs.'+m.salePrice+' / '+m.unit+'  •  Stock: '+m.stock+(m.stock<=m.lowStockAlert?' ⚠️ LOW':'');
+    prev.style.display='block';
+  }
+}
+function clearMedSel(){
+  _selMed=null;
+  var srch=document.getElementById('bmedsrch');if(srch)srch.value='';
+  var prev=document.getElementById('bmedprev');if(prev)prev.style.display='none';
+  var res=document.getElementById('bilresults');if(res)res.style.display='none';
+}
+function closeBilResultsOutside(e){
+  var srch=document.getElementById('bmedsrch'),res=document.getElementById('bilresults');
+  if(res&&srch&&!srch.contains(e.target)&&!res.contains(e.target))res.style.display='none';
+}
+function swBilTab(id,btn){
+  ['nb','bh'].forEach(function(t){var el=document.getElementById('bil-'+t);if(el)el.style.display=t===id?'block':'none';});
+  document.querySelectorAll('#bilcont .tb').forEach(function(b){b.classList.remove('active');b.style.color='#9DC4A8';b.style.borderBottom='none';});
+  btn.classList.add('active');btn.style.color='var(--AC)';btn.style.borderBottom='2px solid var(--AC)';
+}
+function adjQ(d){bqty=Math.max(1,bqty+d);var el=document.getElementById('bqty');if(el)el.textContent=bqty;}
+function addToCart(){
+  if(!_selMed){toast('Search and select a medicine first','error');return;}
+  var m=_selMed,id=m._id,price=m.salePrice,name=m.name,unit=m.unit,stock=m.stock;
+  var ex=null;for(var i=0;i<cart.length;i++){if(cart[i].medicineId===id){ex=cart[i];break;}}
+  var tq=(ex?ex.qty:0)+bqty;
+  if(tq>stock){toast('Only '+stock+' '+unit+' in stock','error');return;}
+  if(ex)ex.qty=tq;else cart.push({medicineId:id,name:name,unit:unit,qty:bqty,price:price});
+  bqty=1;var bel=document.getElementById('bqty');if(bel)bel.textContent='1';
+  clearMedSel();renderCart();
+  toast('✅ '+name+' added');
+}
+function renderCart(){
+  var sec=document.getElementById('cartsec'),iel=document.getElementById('cartitems');
+  if(!cart.length){if(sec)sec.style.display='none';return;}
+  if(sec)sec.style.display='block';
+  if(iel)iel.innerHTML=cart.map(function(c,i){return'<div class="crow"><div><div class="cname">'+c.name+'</div><div class="cmeta">'+c.qty+' '+c.unit+' × Rs.'+c.price+'</div></div><div class="cright"><span class="ctot">Rs.'+(c.qty*c.price)+'</span><button class="ibtn" style="color:var(--DG)" onclick="rmCart('+i+')">✕</button></div></div>';}).join('');
+  updCart();
+}
+function rmCart(i){cart.splice(i,1);renderCart();}
+function updCart(){
+  var disc=parseFloat(document.getElementById('bdisc')&&document.getElementById('bdisc').value)||0;
+  var sub=cart.reduce(function(a,c){return a+c.qty*c.price;},0),da=Math.round(sub*disc/100),tot=sub-da;
+  var el=document.getElementById('carttot');
+  if(el)el.innerHTML='<div class="tr"><span>Subtotal</span><span>Rs.'+sub+'</span></div>'+(da?'<div class="tr red"><span>Discount ('+disc+'%)</span><span>−Rs.'+da+'</span></div>':'')+'<div class="tr big"><span>TOTAL</span><span>Rs.'+tot+'</span></div>';
+}
+function genBill(){
+  var pn=document.getElementById('bpn')&&document.getElementById('bpn').value.trim();
+  if(!pn){toast('Enter patient name','error');return;}
+  if(!cart.length){toast('Add medicines to cart','error');return;}
+  var disc=parseFloat(document.getElementById('bdisc')&&document.getElementById('bdisc').value)||0;
+  var sub=cart.reduce(function(a,c){return a+c.qty*c.price;},0),da=Math.round(sub*disc/100),tot=sub-da;
+  var bill={billNo:'MED-'+uid5(),patientName:pn,patientMr:document.getElementById('bpmr').value.trim()||'',items:cart.slice(),subtotal:sub,discount:da,total:tot,date:today(),time:timeNow()};
+  fbAdd('medicineBills',bill).then(function(){
+    var p=Promise.resolve();
+    bill.items.forEach(function(it){p=p.then(function(){var m=null;for(var i=0;i<_allMeds.length;i++){if(_allMeds[i]._id===it.medicineId){m=_allMeds[i];break;}}if(m)return fbUpdate('medicines',m._id,{stock:Math.max(0,m.stock-it.qty)});});});
+    return p;
+  }).then(function(){return fbAdd('incomes',{description:'Medicine Bill - '+pn,amount:tot,type:'Pharmacy',date:today()});})
+  .then(function(){
+    toast('✅ Bill generated!');printBill(bill);
+    cart=[];bqty=1;
+    ['bpn','bpmr'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    var bd=document.getElementById('bdisc');if(bd)bd.value='0';
+    renderCart();refreshMeds();
+  }).catch(function(e){toast('Error: '+e.message,'error');});
+}
+function loadBillHist(period){
+  period=period||'today';
+  fbGetAll('medicineBills').then(function(all){
+    var bills=all.filter(function(b){return period==='today'?b.date===today():b.date&&b.date.indexOf(monthStr())===0;});
+    bills.sort(function(a,b){return(b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
+    var el=document.getElementById('bhlist');if(!el)return;
+    el.innerHTML='<div class="bhtog"><button class="'+(period==='today'?'a':'')+'" onclick="loadBillHist(\'today\')">Today</button><button class="'+(period==='month'?'a':'')+'" onclick="loadBillHist(\'month\')">This Month</button></div>'
+      +(bills.length===0?'<div class="empty">🧾<br>No bills found</div>'
+        :bills.map(function(b){return'<div class="lcard" onclick=\'printBill('+JSON.stringify(b).replace(/'/g,"&#39;")+')\'  style="cursor:pointer"><div class="av" style="background:var(--P);color:var(--AC)">🧾</div><div class="li"><div class="ln">'+b.patientName+'</div><div class="ls">'+b.billNo+' • '+b.time+'</div>'+(b.discount>0?'<div class="ls green">Discount: Rs.'+b.discount+'</div>':'')+'</div><div class="abadge">Rs.'+b.total+'</div></div>';}).join(''));
+  });
+}
+
+// ═══ SURGERY ═══
+
+// ═══════════════════════════════════════════
+// PRESCRIPTION (Rx)
+// ═══════════════════════════════════════════
+var rxMeds = [];         // all medicines loaded for search
+var rxCart = [];         // medicines added to prescription
+var rxSelMed = null;     // currently selected medicine from search
+
+function buildRx() {
+  return fbGetAll('medicines').then(function(meds) {
+    rxMeds = meds.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
+    return '<div class="pg-hdr"><h2>📋 Prescription (Rx)</h2></div>'
+      +'<div class="tbar">'
+      +'<button class="tb active" onclick="stab('rxnew',this)">New Rx</button>'
+      +'<button class="tb" onclick="stab('rxhist',this);loadRxHist()">History</button>'
+      +'</div>'
+      +'<div id="tc-rxnew" class="tc active">'
+      // Patient details
+      +'<div class="fcard">'
+      +'<div class="ftitle">Patient Details</div>'
+      +'<label>Patient Name *</label><input id="rx-pname" type="text" placeholder="Full Name">'
+      +'<div class="r2">'
+      +'<div><label>Age</label><input id="rx-page" type="text" placeholder="e.g. 35 Years"></div>'
+      +'<div><label>Gender</label><select id="rx-pgender"><option>Male</option><option>Female</option><option>Child</option></select></div>'
+      +'</div>'
+      +'<div class="r2">'
+      +'<div><label>Weight (kg)</label><input id="rx-pwt" type="text" placeholder="Optional"></div>'
+      +'<div><label>Date</label><input id="rx-date" type="date" value="'+new Date().toISOString().split('T')[0]+'"></div>'
+      +'</div>'
+      +'<label>Diagnosis / Chief Complaint</label><input id="rx-diag" type="text" placeholder="e.g. Upper Respiratory Infection">'
+      +'</div>'
+      // Add medicine
+      +'<div class="fcard">'
+      +'<div class="ftitle">Add Medicine to Prescription</div>'
+      +'<div style="position:relative">'
+      +'<input id="rx-srch" type="text" placeholder="🔍 Search medicine..." autocomplete="off" oninput="rxFilterMeds()" onfocus="rxShowResults()" style="width:100%;padding:10px 12px;border:1.5px solid var(--BD);border-radius:9px;font-family:inherit;font-size:13px;background:#fff;outline:none">'
+      +'<div id="rx-results" style="display:none;position:absolute;left:0;right:0;top:44px;background:#fff;border:1.5px solid var(--P);border-radius:9px;z-index:99;max-height:200px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>'
+      +'</div>'
+      +'<div id="rx-prev" style="display:none;background:rgba(27,67,50,.07);border:1.5px solid var(--P);border-radius:9px;padding:10px 12px;margin-top:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<div><div id="rx-prev-name" style="font-weight:800;font-size:13px;color:var(--P)"></div>'
+      +'<div id="rx-prev-cat" style="font-size:11px;color:var(--MU);margin-top:1px"></div></div>'
+      +'<button onclick="rxClearSel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--MU)">✕</button>'
+      +'</div></div>'
+      // Dosage fields
+      +'<div style="margin-top:10px">'
+      +'<label>Dose / Strength</label>'
+      +'<input id="rx-dose" type="text" placeholder="e.g. 1 tablet, 500mg, 5ml">'
+      +'<label>Frequency</label>'
+      +'<select id="rx-freq">'
+      +'<option value="Once daily">Once daily (OD)</option>'
+      +'<option value="Twice daily">Twice daily (BD)</option>'
+      +'<option value="Three times daily" selected>Three times daily (TDS)</option>'
+      +'<option value="Four times daily">Four times daily (QID)</option>'
+      +'<option value="Every 8 hours">Every 8 hours (TID)</option>'
+      +'<option value="At night">At night (HS)</option>'
+      +'<option value="In the morning">In the morning (AM)</option>'
+      +'<option value="SOS / As needed">SOS / As needed</option>'
+      +'</select>'
+      +'<label>Duration</label>'
+      +'<input id="rx-dur" type="text" placeholder="e.g. 5 days, 1 week, 1 month">'
+      +'<label>Instructions</label>'
+      +'<input id="rx-inst" type="text" placeholder="e.g. After meals, With water, Before sleep">'
+      +'</div>'
+      +'<button class="btn2" style="width:100%;margin-top:12px;padding:12px" onclick="rxAddMed()">+ Add to Prescription</button>'
+      +'</div>'
+      // Prescription list
+      +'<div id="rx-list-wrap"></div>'
+      // Extra advice
+      +'<div class="fcard" style="margin-bottom:0">'
+      +'<div class="ftitle">Additional Advice</div>'
+      +'<textarea id="rx-advice" rows="3" placeholder="e.g. Drink plenty of water, Rest, Follow-up after 1 week, Avoid cold drinks..."></textarea>'
+      +'<label>Doctor Name</label>'
+      +'<input id="rx-drname" type="text" value="Dr. Ayat" placeholder="Doctor Name">'
+      +'<button class="btn" onclick="rxPreview()">👁️ Preview &amp; Print Prescription</button>'
+      +'</div>'
+      +'<div style="height:20px"></div>'
+      +'</div>'
+      // History tab
+      +'<div id="tc-rxhist" class="tc"><div id="rxhistlist" style="padding:10px 14px"></div></div>';
+  });
+}
+
+function initRx() {
+  rxCart = []; rxSelMed = null;
+  document.addEventListener('click', rxCloseOutside);
+}
+
+// ── Medicine search ──
+function rxFilterMeds() {
+  var q = (document.getElementById('rx-srch').value||'').trim().toLowerCase();
+  var list = q ? rxMeds.filter(function(m){return m.name.toLowerCase().indexOf(q)>=0;}) : rxMeds;
+  rxRenderResults(list);
+}
+function rxShowResults() { rxFilterMeds(); var el=document.getElementById('rx-results'); if(el)el.style.display='block'; }
+function rxRenderResults(list) {
+  var el = document.getElementById('rx-results'); if(!el) return;
+  if(!list.length){el.innerHTML='<div style="padding:12px;text-align:center;color:var(--MU);font-size:12px">No medicines found</div>';el.style.display='block';return;}
+  el.style.display = 'block';
+  el.innerHTML = list.map(function(m){
+    return '<div onclick="rxSelMedFn(\''+m._id+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer">'
+      +'<div><div style="font-weight:700;font-size:13px">'+m.name+'</div>'
+      +'<div style="font-size:10px;color:var(--MU);margin-top:1px"><span style="background:rgba(27,67,50,.1);color:var(--P);border-radius:4px;padding:1px 5px;font-weight:700">'+m.category+'</span></div></div>'
+      +'<div style="font-size:10px;color:var(--MU);text-align:right">'+m.unit+'</div>'
+      +'</div>';
+  }).join('');
+}
+function rxSelMedFn(id) {
+  var m=null; for(var i=0;i<rxMeds.length;i++){if(rxMeds[i]._id===id){m=rxMeds[i];break;}}
+  if(!m) return;
+  rxSelMed = m;
+  var srch=document.getElementById('rx-srch'); if(srch) srch.value=m.name;
+  var res=document.getElementById('rx-results'); if(res) res.style.display='none';
+  var prev=document.getElementById('rx-prev');
+  if(prev){
+    document.getElementById('rx-prev-name').textContent = m.name;
+    document.getElementById('rx-prev-cat').textContent  = m.category+' · '+m.unit;
+    prev.style.display='block';
+  }
+  // Auto-fill dose hint based on category
+  var doseEl=document.getElementById('rx-dose');
+  if(doseEl && !doseEl.value){
+    if(m.category==='Tablet'||m.category==='Capsule') doseEl.value='1 '+m.unit;
+    else if(m.category==='Syrup') doseEl.value='5ml (1 teaspoon)';
+    else if(m.category==='Injection') doseEl.value='1 Amp';
+    else if(m.category==='IV Fluid') doseEl.value='1 Bottle (500ml)';
+    else doseEl.value='';
+  }
+}
+function rxClearSel() {
+  rxSelMed=null;
+  var s=document.getElementById('rx-srch'); if(s) s.value='';
+  var p=document.getElementById('rx-prev'); if(p) p.style.display='none';
+  var r=document.getElementById('rx-results'); if(r) r.style.display='none';
+  var d=document.getElementById('rx-dose'); if(d) d.value='';
+}
+function rxCloseOutside(e){
+  var srch=document.getElementById('rx-srch'),res=document.getElementById('rx-results');
+  if(res&&srch&&!srch.contains(e.target)&&!res.contains(e.target)) res.style.display='none';
+}
+
+// ── Add medicine to Rx cart ──
+function rxAddMed() {
+  if(!rxSelMed){toast('Search and select a medicine first','error');return;}
+  var dose=document.getElementById('rx-dose').value.trim();
+  var freq=document.getElementById('rx-freq').value;
+  var dur=document.getElementById('rx-dur').value.trim();
+  var inst=document.getElementById('rx-inst').value.trim();
+  if(!dose){toast('Enter dose / strength','error');return;}
+  rxCart.push({
+    medicineId: rxSelMed._id,
+    name:       rxSelMed.name,
+    category:   rxSelMed.category,
+    unit:       rxSelMed.unit,
+    dose:       dose,
+    frequency:  freq,
+    duration:   dur,
+    instructions: inst
+  });
+  rxClearSel();
+  document.getElementById('rx-dur').value='';
+  document.getElementById('rx-inst').value='';
+  rxRenderCart();
+  toast('✅ '+rxCart[rxCart.length-1].name+' added');
+}
+
+function rxRenderCart() {
+  var wrap = document.getElementById('rx-list-wrap'); if(!wrap) return;
+  if(!rxCart.length){wrap.innerHTML='';return;}
+  wrap.innerHTML = '<div class="fcard" style="margin-top:10px">'
+    +'<div class="ftitle">💊 Prescription List ('+rxCart.length+' medicine'+(rxCart.length>1?'s':'')+')</div>'
+    +rxCart.map(function(item,i){
+      return '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--BD)">'
+        +'<div style="background:var(--P);color:var(--AC);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:2px">'+(i+1)+'</div>'
+        +'<div style="flex:1">'
+        +'<div style="font-weight:800;font-size:13px">'+item.name+'</div>'
+        +'<div style="font-size:11px;color:var(--MU);margin-top:2px">'+item.dose+' · '+item.frequency+(item.duration?' · '+item.duration:'')+'</div>'
+        +(item.instructions?'<div style="font-size:11px;color:var(--P);margin-top:1px;font-style:italic">'+item.instructions+'</div>':'')
+        +'</div>'
+        +'<button class="ibtn" style="color:var(--DG)" onclick="rxRemove('+i+')">🗑️</button>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+}
+function rxRemove(i){rxCart.splice(i,1);rxRenderCart();}
+
+// ── Preview → print ──
+function rxPreview() {
+  var pname=document.getElementById('rx-pname').value.trim();
+  if(!pname){toast('Enter patient name','error');return;}
+  if(!rxCart.length){toast('Add at least one medicine','error');return;}
+
+  var age    = document.getElementById('rx-page').value.trim();
+  var gender = document.getElementById('rx-pgender').value;
+  var wt     = document.getElementById('rx-pwt').value.trim();
+  var diag   = document.getElementById('rx-diag').value.trim();
+  var advice = document.getElementById('rx-advice').value.trim();
+  var drname = document.getElementById('rx-drname').value.trim()||'Dr. Ayat';
+  var rxdate = document.getElementById('rx-date').value||today();
+
+  // Build A4 HTML
+  var html = '<div class="rx-top-blank"></div>'
+    +'<div class="rx-body">'
+    // Patient info strip
+    +'<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6mm;margin-bottom:5mm;font-size:10.5pt">'
+    +'<div><div style="font-size:8.5pt;color:#666;margin-bottom:1mm">Patient Name</div>'
+    +'<div style="font-weight:700;border-bottom:1px solid #aaa;padding-bottom:1mm">'+pname+'</div></div>'
+    +'<div><div style="font-size:8.5pt;color:#666;margin-bottom:1mm">Age / Gender</div>'
+    +'<div style="font-weight:700;border-bottom:1px solid #aaa;padding-bottom:1mm">'+(age?age+' / ':'')+gender+'</div></div>'
+    +'<div><div style="font-size:8.5pt;color:#666;margin-bottom:1mm">Date</div>'
+    +'<div style="font-weight:700;border-bottom:1px solid #aaa;padding-bottom:1mm">'+fdate(rxdate)+'</div></div>'
+    +'</div>'
+    +(wt||diag?'<div style="display:grid;grid-template-columns:'+(wt&&diag?'1fr 3fr':'1fr')+';gap:6mm;margin-bottom:5mm;font-size:10.5pt">'
+      +(wt?'<div><div style="font-size:8.5pt;color:#666;margin-bottom:1mm">Weight</div><div style="font-weight:700;border-bottom:1px solid #aaa;padding-bottom:1mm">'+wt+' kg</div></div>':'')
+      +(diag?'<div><div style="font-size:8.5pt;color:#666;margin-bottom:1mm">Diagnosis</div><div style="font-weight:700;border-bottom:1px solid #aaa;padding-bottom:1mm">'+diag+'</div></div>':'')
+      +'</div>':'')
+    // Big Rx symbol
+    +'<div style="font-size:28pt;font-weight:900;color:#1B4332;line-height:1;margin-bottom:3mm;font-family:Times New Roman,serif">&#x211E;</div>'
+    // Medicines
+    +rxCart.map(function(item,i){
+      return '<div style="display:flex;align-items:flex-start;margin-bottom:5mm;page-break-inside:avoid">'
+        +'<div style="font-size:11pt;font-weight:700;min-width:7mm;color:#333;padding-top:1mm">'+(i+1)+'.</div>'
+        +'<div style="flex:1">'
+        +'<div style="font-size:12pt;font-weight:700;color:#111">'+item.name+'</div>'
+        +'<div style="font-size:10pt;color:#333;margin-top:1.5mm">'
+        +'<span style="margin-right:6mm">📌 '+item.dose+'</span>'
+        +'<span style="margin-right:6mm">🕐 '+item.frequency+'</span>'
+        +(item.duration?'<span>📅 '+item.duration+'</span>':'')
+        +'</div>'
+        +(item.instructions?'<div style="font-size:9.5pt;color:#555;margin-top:1mm;font-style:italic">✦ '+item.instructions+'</div>':'')
+        +'<div style="border-bottom:1px dashed #ccc;margin-top:3.5mm"></div>'
+        +'</div>'
+        +'</div>';
+    }).join('')
+    // Advice
+    +(advice?'<div style="background:#f5f5f0;border-left:3px solid #1B4332;padding:3mm 4mm;margin-top:2mm;margin-bottom:5mm;font-size:9.5pt;color:#333;line-height:1.7">'
+      +'<div style="font-weight:700;margin-bottom:1mm;color:#1B4332">Advice:</div>'+advice+'</div>':'')
+    // Footer: signature
+    +'<div style="display:flex;justify-content:flex-end;margin-top:8mm">'
+    +'<div style="text-align:center">'
+    +'<div style="border-top:1.5px solid #333;width:50mm;margin-bottom:2mm"></div>'
+    +'<div style="font-size:10.5pt;font-weight:700">'+drname+'</div>'
+    +'<div style="font-size:8.5pt;color:#555">Ayat Surgical Clinic</div>'
+    +'</div></div>'
+    +'</div>'; // end rx-body
+
+  document.getElementById('rx-a4-content').innerHTML = html;
+  document.getElementById('rx-print-area').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('mainnav').style.display = 'none';
+  document.getElementById('syncdot').style.display = 'none';
+
+  // Save prescription to Firestore
+  fbAdd('prescriptions',{
+    patientName:pname, age:age, gender:gender, weight:wt||'',
+    diagnosis:diag, medicines:rxCart.slice(), advice:advice,
+    doctorName:drname, date:rxdate
+  }).catch(function(e){console.error('Rx save error:',e);});
+}
+
+function closeRxPrint(){
+  document.getElementById('rx-print-area').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('mainnav').classList.add('show');
+  document.getElementById('syncdot').classList.add('on');
+}
+
+// ── Rx History ──
+function loadRxHist(){
+  fbGetAll('prescriptions').then(function(list){
+    list.sort(function(a,b){return(b.createdAt||'').localeCompare(a.createdAt||'');});
+    var el=document.getElementById('rxhistlist'); if(!el) return;
+    if(!list.length){el.innerHTML='<div class="empty">📋<br>No prescriptions yet</div>';return;}
+    el.innerHTML = list.map(function(rx){
+      return '<div class="lcard" style="cursor:pointer" onclick='rxViewOld('+JSON.stringify(rx).replace(/'/g,"&#39;")+')' >'
+        +'<div class="av" style="background:var(--P);color:var(--AC);font-size:18px">📋</div>'
+        +'<div class="li"><div class="ln">'+rx.patientName+'</div>'
+        +'<div class="ls">'+(rx.diagnosis||'')+(rx.diagnosis&&rx.medicines?' · ':'')+rx.medicines.length+' medicine'+(rx.medicines.length>1?'s':'')+'</div>'
+        +'<div class="ls">'+fdate(rx.date)+' · '+rx.doctorName+'</div></div>'
+        +'</div>';
+    }).join('');
+  });
+}
+
+function rxViewOld(rx){
+  // Re-populate cart and fields then preview
+  rxCart = rx.medicines.slice();
+  document.getElementById('rx-pname').value  = rx.patientName||'';
+  document.getElementById('rx-page').value   = rx.age||'';
+  document.getElementById('rx-pgender').value= rx.gender||'Male';
+  document.getElementById('rx-pwt').value    = rx.weight||'';
+  document.getElementById('rx-diag').value   = rx.diagnosis||'';
+  document.getElementById('rx-advice').value = rx.advice||'';
+  document.getElementById('rx-drname').value = rx.doctorName||'Dr. Ayat';
+  document.getElementById('rx-date').value   = rx.date||today();
+  stab('rxnew', document.querySelector('[onclick*="rxnew"]'));
+  rxRenderCart();
+  setTimeout(rxPreview, 100);
+}
+
+function buildSurg(){
+  return '<div class="pg-hdr"><h2>🔬 Surgery Records</h2></div>'
+    +'<div class="tbar"><button class="tb active" onclick="stab(\'sf\',this)">New Record</button>'
+    +'<button class="tb" onclick="stab(\'sh\',this);loadSurgHist()">History</button></div>'
+    +'<div id="tc-sf" class="tc active">'
+    +'<div class="fcard"><div class="ftitle">Patient Information</div>'
+    +'<label>Patient Name *</label><input id="sn" type="text" placeholder="Full Name">'
+    +'<div class="r2"><div><label>Age</label><input id="sa" type="number" placeholder="Years"></div>'
+    +'<div><label>Gender</label><select id="sg2"><option>Male</option><option>Female</option></select></div></div>'
+    +'<label>Department</label><select id="sdept"><option>Orthopaedic</option><option>Gynaecology</option></select></div>'
+    +'<div class="fcard"><div class="ftitle">Surgery Details</div>'
+    +'<label>Surgery Type *</label><input id="st" type="text" placeholder="e.g. C-Section, Hip Replacement">'
+    +'<label>Surgeon Name</label><input id="ssu" type="text" value="Dr. Ayat">'
+    +'<label>Surgery Fee (Rs.) *</label><input id="sfee" type="number" placeholder="0">'
+    +'<label>Date</label><input id="sdate" type="date" value="'+today()+'">'
+    +'<label>Notes</label><textarea id="snotes" rows="3" placeholder="Additional notes..."></textarea></div>'
+    +'<div style="padding:0 14px"><button class="btn" onclick="saveSurg()">💾 Save Surgery Record</button></div>'
+    +'<div style="height:20px"></div></div>'
+    +'<div id="tc-sh" class="tc"><div id="surghist" style="padding:10px 14px"><div class="swrap"><div class="spin"></div></div></div></div>';
+}
+function loadSurgHist(){
+  fbGetAll('surgeries').then(function(s){
+    s.sort(function(a,b){return(b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
+    var el=document.getElementById('surghist');if(!el)return;
+    el.innerHTML=s.length===0?'<div class="empty">🔬<br>No surgery records yet</div>'
+      :s.map(function(r){return'<div class="sgcard"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="ln">'+r.patientName+'</div><div class="ls" style="margin-top:2px">'+r.surgeryType+'</div></div><div class="abadge">Rs.'+r.fee.toLocaleString()+'</div></div><div class="sgmeta"><span class="dpill '+(r.department==='Orthopaedic'?'op':'gp')+'">'+(r.department==='Orthopaedic'?'🦴':'🌸')+' '+r.department+'</span><span class="ls">'+r.age+'y '+r.gender+' • '+r.surgeonName+'</span></div><div class="ls">📅 '+fdate(r.date)+'</div>'+(r.notes?'<div class="ls" style="margin-top:5px;font-style:italic">📝 '+r.notes+'</div>':'')+'</div>';}).join('');
+  });
+}
+function saveSurg(){
+  var name=document.getElementById('sn').value.trim(),type=document.getElementById('st').value.trim(),fee=parseFloat(document.getElementById('sfee').value);
+  if(!name||!type||!fee){toast('Fill all required fields (*)','error');return;}
+  var btn=document.querySelector('[onclick="saveSurg()"]');btn.disabled=true;btn.textContent='Saving...';
+  var sdate=document.getElementById('sdate').value||today();
+  fbAdd('surgeries',{surgeryId:'SRG-'+uid5(),patientName:name,age:parseInt(document.getElementById('sa').value)||0,gender:document.getElementById('sg2').value,department:document.getElementById('sdept').value,surgeryType:type,surgeonName:document.getElementById('ssu').value.trim(),fee:fee,date:sdate,notes:document.getElementById('snotes').value.trim()})
+  .then(function(){return fbAdd('incomes',{description:type+' - '+name,amount:fee,type:'Surgery Fee',date:sdate});})
+  .then(function(){
+    toast('✅ Surgery record saved!');
+    ['sn','sa','st','sfee','snotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('ssu').value='Dr. Ayat';document.getElementById('sdate').value=today();
+    btn.disabled=false;btn.textContent='💾 Save Surgery Record';
+  }).catch(function(e){toast('Error: '+e.message,'error');btn.disabled=false;btn.textContent='💾 Save Surgery Record';});
+}
+
+// ═══ FINANCE ═══
+var _curMonth=monthStr(),_entType='expense';
+function buildFin(){
+  return buildDaily(today()).then(function(dh){
+    return'<div class="pg-hdr"><h2>📊 Finance Manager</h2></div>'
+      +'<div class="tbar"><button class="tb active" onclick="stab(\'fd\',this)">Daily</button>'
+      +'<button class="tb" onclick="stab(\'fm\',this);loadMonthly()">Monthly</button>'
+      +'<button class="tb" onclick="stab(\'fa\',this)">Add Entry</button></div>'
+      +'<div id="tc-fd" class="tc active">'+dh+'</div>'
+      +'<div id="tc-fm" class="tc"></div>'
+      +'<div id="tc-fa" class="tc">'+buildAddEntry()+'</div>';
+  });
+}
+function buildDaily(date){
+  return Promise.all([fbWhere('incomes','date','==',date),fbWhere('expenses','date','==',date)]).then(function(r){
+    var incs=r[0],exps=r[1];
+    var income=incs.reduce(function(a,i){return a+i.amount;},0),expense=exps.reduce(function(a,e){return a+e.amount;},0),net=income-expense;
+    var nc=net>=0?'var(--SU)':'var(--DG)',nb=net>=0?'#e8f5e9':'#fdecea';
+    return'<div style="padding:12px 14px 0">'
+      +'<button class="dpbtn" onclick="pickFDate()">📅 '+fdate(date)+' ▾</button>'
+      +'<input type="date" id="fdinput" value="'+date+'" style="display:none;position:absolute" onchange="reloadDaily(this.value)">'
+      +'<div class="fsum"><div class="fst g"><div class="fl">Income</div><div class="fa">Rs.'+Math.round(income).toLocaleString()+'</div></div>'
+      +'<div class="fst r"><div class="fl">Expenses</div><div class="fa">Rs.'+Math.round(expense).toLocaleString()+'</div></div></div>'
+      +'<div class="nbox" style="border-color:'+nc+';background:'+nb+'"><span style="color:'+nc+';font-weight:800">Net Balance</span><span style="color:'+nc+';font-weight:800;font-size:17px">Rs.'+Math.round(net).toLocaleString()+'</span></div>'
+      +'<div class="stitle">Income Entries</div>'
+      +(incs.length?incs.map(function(i){return'<div class="txcard"><div class="txi gbg">+</div><div class="li"><div class="ln">'+i.description+'</div><div class="ls">'+i.type+'</div></div><div class="ta g">+Rs.'+i.amount+'</div></div>';}).join(''):'<div class="enote">No income recorded</div>')
+      +'<div class="stitle">Expense Entries</div>'
+      +(exps.length?exps.map(function(e){return'<div class="txcard"><div class="txi rbg">−</div><div class="li"><div class="ln">'+e.description+'</div><div class="ls">'+e.category+'</div></div><div class="ta r">−Rs.'+e.amount+'</div></div>';}).join(''):'<div class="enote">No expenses recorded</div>')
+      +'</div><div style="height:80px"></div>';
+  });
+}
+function pickFDate(){var el=document.getElementById('fdinput');if(el){el.style.display='block';if(el.showPicker)el.showPicker();else el.click();}}
+function reloadDaily(d){buildDaily(d).then(function(h){var el=document.getElementById('tc-fd');if(el)el.innerHTML=h;});}
+function loadMonthly(){buildMonthly(_curMonth).then(function(h){var el=document.getElementById('tc-fm');if(el)el.innerHTML=h;});}
+function buildMonthly(mo){
+  return Promise.all([fbGetAll('incomes'),fbGetAll('expenses')]).then(function(r){
+    var incs=r[0].filter(function(i){return i.date&&i.date.indexOf(mo)===0;});
+    var exps=r[1].filter(function(e){return e.date&&e.date.indexOf(mo)===0;});
+    var income=incs.reduce(function(a,i){return a+i.amount;},0),expense=exps.reduce(function(a,e){return a+e.amount;},0),net=income-expense;
+    function grp(arr,k){return arr.reduce(function(a,i){a[i[k]]=(a[i[k]]||0)+i.amount;return a;},{});}
+    var ibt=grp(incs,'type'),ebc=grp(exps,'category');
+    return'<div style="padding:12px 14px 0">'
+      +'<div class="mnav"><button onclick="chMonth(-1)">‹</button><span>'+mo+'</span><button onclick="chMonth(1)">›</button></div>'
+      +'<div class="fsum t3"><div class="fst g"><div class="fl">Income</div><div class="fa sm">Rs.'+Math.round(income).toLocaleString()+'</div></div>'
+      +'<div class="fst r"><div class="fl">Expenses</div><div class="fa sm">Rs.'+Math.round(expense).toLocaleString()+'</div></div>'
+      +'<div class="fst" style="border-color:'+(net>=0?'var(--SU)':'var(--DG)')+'"><div class="fl">Net</div><div class="fa sm" style="color:'+(net>=0?'var(--SU)':'var(--DG)')+'">Rs.'+Math.round(net).toLocaleString()+'</div></div></div>'
+      +'<div class="stitle">Income Breakdown</div>'
+      +(Object.keys(ibt).length?Object.keys(ibt).map(function(k){return'<div class="txcard"><div class="li"><div class="ln">'+k+'</div></div><div class="ta g">Rs.'+Math.round(ibt[k]).toLocaleString()+'</div></div>';}).join(''):'<div class="enote">No income this month</div>')
+      +'<div class="stitle">Expense Breakdown</div>'
+      +(Object.keys(ebc).length?Object.keys(ebc).map(function(k){return'<div class="txcard"><div class="li"><div class="ln">'+k+'</div></div><div class="ta r">Rs.'+Math.round(ebc[k]).toLocaleString()+'</div></div>';}).join(''):'<div class="enote">No expenses this month</div>')
+      +'</div><div style="height:80px"></div>';
+  });
+}
+function chMonth(d){var p=_curMonth.split('-'),y=parseInt(p[0]),m=parseInt(p[1]),dt=new Date(y,m-1+d);_curMonth=dt.getFullYear()+'-'+(dt.getMonth()+1<10?'0':'')+(dt.getMonth()+1);loadMonthly();}
+function buildAddEntry(){
+  return'<div style="padding:14px"><div class="togrow"><button class="togbtn act-r" id="texp" onclick="setEnt(\'expense\')">➖ Expense</button><button class="togbtn" id="tinc" onclick="setEnt(\'income\')">➕ Income</button></div>'
+    +'<div class="fcard"><label>Description *</label><input id="edesc" type="text" placeholder="e.g. Medicine Purchase">'
+    +'<label>Amount (Rs.) *</label><input id="eamt" type="number" placeholder="0">'
+    +'<label id="ecatlbl">Category</label><select id="ecat">'+ECATS.map(function(c){return'<option>'+c+'</option>';}).join('')+'</select>'
+    +'<label>Date</label><input id="edate" type="date" value="'+today()+'">'
+    +'<button class="btn red" id="esavebtn" onclick="saveEntry()">Add Expense</button></div></div><div style="height:80px"></div>';
+}
+function setEnt(type){
+  _entType=type;var isExp=type==='expense';
+  document.getElementById('texp').className='togbtn '+(isExp?'act-r':'');
+  document.getElementById('tinc').className='togbtn '+(isExp?'':'act-g');
+  var l=document.getElementById('ecatlbl'),s=document.getElementById('ecat'),b=document.getElementById('esavebtn');
+  if(isExp){l.textContent='Category';s.innerHTML=ECATS.map(function(c){return'<option>'+c+'</option>';}).join('');b.className='btn red';b.textContent='Add Expense';}
+  else{l.textContent='Type';s.innerHTML=ITYPES.map(function(c){return'<option>'+c+'</option>';}).join('');b.className='btn grn';b.textContent='Add Income';}
+}
+function saveEntry(){
+  var desc=document.getElementById('edesc').value.trim(),amt=parseFloat(document.getElementById('eamt').value);
+  if(!desc||!amt){toast('Fill all fields','error');return;}
+  var cat=document.getElementById('ecat').value,date=document.getElementById('edate').value||today();
+  (_entType==='expense'?fbAdd('expenses',{description:desc,amount:amt,category:cat,date:date}):fbAdd('incomes',{description:desc,amount:amt,type:cat,date:date}))
+  .then(function(){toast('✅ '+(_entType==='expense'?'Expense':'Income')+' added!');document.getElementById('edesc').value='';document.getElementById('eamt').value='';})
+  .catch(function(e){toast('Error: '+e.message,'error');});
+}
+
+// ═══ TABS ═══
+function stab(id,btn){
+  var bar=btn.closest('.tbar');
+  bar.querySelectorAll('.tb').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('app').querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});
+  var el=document.getElementById('tc-'+id);if(el)el.classList.add('active');
+}
+
+// ═══ PRINT ═══
+function printToken(tk){
+  var io=tk.department==='Orthopaedic';
+  showPrint('<div class="rcpt-hdr"><div class="rlogo">☪</div><div class="rcn">AYAT SURGICAL CLINIC</div><div class="rcs">ORTHOPAEDIC &amp; GYNAECOLOGY</div></div>'
+    +'<div class="rtype">OPD TOKEN</div>'
+    +'<div class="tbig '+(io?'or':'gy')+'"><div class="tbn">'+tk.tokenNo+'</div><div class="tbl">TOKEN NO.</div></div>'
+    +'<div class="rdept '+(io?'otext':'gtext')+'">'+(io?'🦴':'🌸')+' '+tk.department+'</div>'
+    +'<div class="rdets"><div class="rdet"><span>Patient</span><b>'+tk.patientName+'</b></div>'
+    +'<div class="rdet"><span>MR No.</span><b>'+(tk.mrNo||'')+'</b></div>'
+    +'<div class="rdet"><span>Date</span><b>'+fdate(tk.date)+'</b></div>'
+    +'<div class="rdet"><span>Time</span><b>'+tk.time+'</b></div>'
+    +'<div class="rdet"><span>Department</span><b>'+tk.department+'</b></div>'
+    +'<div class="rdet"><span>Consult Fee</span><b>Rs. '+tk.consultFee+'</b></div></div>'
+    +'<div class="rftr">Thank you for visiting Ayat Surgical Clinic<br>Get well soon! 🌟</div>','OPD Token');
+}
+function printBill(bill){
+  showPrint('<div class="rcpt-hdr"><div class="rlogo">☪</div><div class="rcn">AYAT SURGICAL CLINIC</div><div class="rcs">Pharmacy / Medicine Bill</div></div>'
+    +'<div class="rdets"><div class="rdet"><span>Bill No.</span><b>'+bill.billNo+'</b></div>'
+    +'<div class="rdet"><span>Patient</span><b>'+bill.patientName+'</b></div>'
+    +(bill.patientMr?'<div class="rdet"><span>MR No.</span><b>'+bill.patientMr+'</b></div>':'')
+    +'<div class="rdet"><span>Date</span><b>'+fdate(bill.date)+'</b></div>'
+    +'<div class="rdet"><span>Time</span><b>'+bill.time+'</b></div></div>'
+    +'<div class="bih"><span>Item</span><span>Qty</span><span>Price</span><span>Total</span></div>'
+    +bill.items.map(function(i){return'<div class="bir"><span>'+i.name+'</span><span>'+i.qty+'</span><span>'+i.price+'</span><span><b>'+(i.qty*i.price)+'</b></span></div>';}).join('')
+    +'<div class="btots">'+(bill.subtotal!==bill.total?'<div class="rdet"><span>Subtotal</span><span>Rs.'+bill.subtotal+'</span></div><div class="rdet red"><span>Discount</span><span>−Rs.'+bill.discount+'</span></div>':'')
+    +'<div class="rdet big"><span>TOTAL</span><b>Rs.'+bill.total+'</b></div></div>'
+    +'<div class="rftr">Thank you for choosing Ayat Surgical Clinic<br>Get well soon! 🌟</div>','Medicine Bill');
+}
+</script>
+</body>
+</html>
