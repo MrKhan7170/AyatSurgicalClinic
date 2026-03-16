@@ -7,9 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Ayat Surgical Clinic</title>
 
-<!-- Firebase SDK v8 compat — works on Vercel/GitHub Pages (https) -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<!-- No SDK needed — pure REST API -->
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Nunito:wght@400;500;600;700;800&display=swap');
@@ -346,75 +344,117 @@ textarea{resize:vertical;min-height:65px}
 // ═══════════════════════════════════════════════════════
 // FIREBASE SDK v8 — Works on Vercel / GitHub Pages (https)
 // ═══════════════════════════════════════════════════════
-var DB = null;
+// ═══ FIRESTORE REST API — No SDK, works from any https host ═══
+var _PID = 'ayat-clinic';
+var _KEY = 'AIzaSyDEWGSkWPLDNjl46-_-ZQhzDF9Us4YJ89U';
+var _BASE = 'https://firestore.googleapis.com/v1/projects/' + _PID + '/databases/(default)/documents/';
 
-function initFirebase() {
-  if (!firebase.apps.length) {
-    firebase.initializeApp({
-      apiKey:    'AIzaSyDEWGSkWPLDNjl46-_-ZQhzDF9Us4YJ89U',
-      authDomain:'ayat-clinic.firebaseapp.com',
-      projectId: 'ayat-clinic'
-    });
-  }
-  DB = firebase.firestore();
+function _toVal(v) {
+  if (v === null || v === undefined) return {nullValue:null};
+  if (typeof v === 'boolean') return {booleanValue:v};
+  if (typeof v === 'number') return Number.isInteger(v) ? {integerValue:''+v} : {doubleValue:v};
+  if (Array.isArray(v)) return {arrayValue:{values:v.map(_toVal)}};
+  if (typeof v === 'object') return {mapValue:{fields:_toFields(v)}};
+  return {stringValue:''+v};
 }
+function _toFields(obj) {
+  var f={};
+  Object.keys(obj).forEach(function(k){ if(k!=='_id') f[k]=_toVal(obj[k]); });
+  return f;
+}
+function _fromVal(v) {
+  if (!v) return null;
+  if ('stringValue'    in v) return v.stringValue;
+  if ('integerValue'   in v) return Number(v.integerValue);
+  if ('doubleValue'    in v) return Number(v.doubleValue);
+  if ('booleanValue'   in v) return v.booleanValue;
+  if ('nullValue'      in v) return null;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue'     in v) return (v.arrayValue.values||[]).map(_fromVal);
+  if ('mapValue'       in v) return _fromDoc({fields:v.mapValue.fields||{},name:''});
+  return null;
+}
+function _fromDoc(doc) {
+  var o={_id: doc.name ? doc.name.split('/').pop() : ''};
+  Object.keys(doc.fields||{}).forEach(function(k){ o[k]=_fromVal(doc.fields[k]); });
+  return o;
+}
+function _url(col,id){ return _BASE+col+(id?'/'+id:'')+'?key='+_KEY; }
 
-function setSyncing(v) { var d=document.getElementById('syncdot'); if(d) d.className=v?'on busy':'on'; }
+function setSyncing(v){ var d=document.getElementById('syncdot'); if(d) d.className=v?'on busy':'on'; }
 
 function fbAdd(col, data) {
   setSyncing(true);
-  return DB.collection(col)
-    .add(Object.assign({}, data, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }))
-    .then(function(r){ setSyncing(false); return r.id; })
-    .catch(function(e){ setSyncing(false); throw e; });
+  data = Object.assign({}, data, {createdAt: new Date().toISOString()});
+  return fetch(_BASE+col+'?key='+_KEY, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({fields:_toFields(data)})
+  }).then(function(r){ return r.json(); })
+  .then(function(doc){ setSyncing(false); return doc.name.split('/').pop(); })
+  .catch(function(e){ setSyncing(false); throw e; });
 }
 
 function fbUpdate(col, id, data) {
   setSyncing(true);
-  return DB.collection(col).doc(id).update(data)
-    .then(function(){ setSyncing(false); })
-    .catch(function(e){ setSyncing(false); throw e; });
+  var fields = _toFields(data);
+  var mask = Object.keys(fields).map(function(k){return 'updateMask.fieldPaths='+k;}).join('&');
+  return fetch(_BASE+col+'/'+id+'?'+mask+'&key='+_KEY, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({fields:fields})
+  }).then(function(r){ setSyncing(false); return r.json(); })
+  .catch(function(e){ setSyncing(false); throw e; });
 }
 
 function fbDelete(col, id) {
   setSyncing(true);
-  return DB.collection(col).doc(id).delete()
-    .then(function(){ setSyncing(false); })
-    .catch(function(e){ setSyncing(false); throw e; });
+  return fetch(_BASE+col+'/'+id+'?key='+_KEY, {method:'DELETE'})
+  .then(function(){ setSyncing(false); })
+  .catch(function(e){ setSyncing(false); throw e; });
 }
 
 function fbGetAll(col) {
-  return DB.collection(col).get().then(function(snap){
-    return snap.docs.map(function(d){ return Object.assign({}, d.data(), { _id: d.id }); });
-  });
+  return fetch(_BASE+col+'?key='+_KEY+'&pageSize=500')
+  .then(function(r){ return r.json(); })
+  .then(function(data){ return (data.documents||[]).map(_fromDoc); });
 }
 
 function fbWhere(col, field, op, value) {
-  return DB.collection(col).where(field, op, value).get().then(function(snap){
-    return snap.docs.map(function(d){ return Object.assign({}, d.data(), { _id: d.id }); });
+  var opMap={'==':'EQUAL','<':'LESS_THAN','<=':'LESS_THAN_OR_EQUAL','>':'GREATER_THAN','>=':'GREATER_THAN_OR_EQUAL'};
+  var body={structuredQuery:{from:[{collectionId:col}],where:{fieldFilter:{
+    field:{fieldPath:field}, op:opMap[op]||'EQUAL',
+    value:_toVal(value)
+  }}}};
+  return fetch('https://firestore.googleapis.com/v1/projects/'+_PID+'/databases/(default)/documents:runQuery?key='+_KEY,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  }).then(function(r){ return r.json(); })
+  .then(function(rows){
+    if(!Array.isArray(rows)) return [];
+    return rows.filter(function(r){return r.document;}).map(function(r){return _fromDoc(r.document);});
+  });
+}
+
+// Batch write using REST (commit endpoint)
+function fbBatch(docs_col_data) {
+  var writes = docs_col_data.map(function(item){
+    var ref = _BASE.replace('/documents/','/documents/'+item.col+'/').slice(0,-1) + Math.random().toString(36).slice(2);
+    // simpler: just use individual fbAdd calls in parallel for seed
+    return null;
   });
 }
 
 // ═══ AUTO-CONNECT ON PAGE LOAD ═══
 window.addEventListener('load', function() {
   showConn('Connecting...');
-  try {
-    initFirebase();
-    // Boot app immediately after first Firestore response — don't wait for seeding
-    DB.collection('medicines').limit(1).get()
-      .then(function(snap) {
-        bootApp();
-        // Seed in background only if collection is empty
-        if (snap.empty) { seedMedicines(); }
-      })
-      .catch(function(e) {
-        document.getElementById('conn-txt').textContent = '❌ Connection failed: ' + e.message;
-        console.error(e);
-      });
-  } catch(e) {
-    document.getElementById('conn-txt').textContent = '❌ Error: ' + e.message;
-    console.error(e);
-  }
+  fbGetAll('medicines')
+    .then(function(docs) {
+      bootApp();
+      if (!docs.length) { seedMedicines(); }
+    })
+    .catch(function(e) {
+      document.getElementById('conn-txt').textContent = '❌ ' + e.message;
+      console.error(e);
+    });
 });
 
 function showConn(msg) { document.getElementById('conn-txt').textContent=msg||'Connecting...'; document.getElementById('conn-overlay').classList.add('show'); }
@@ -429,7 +469,7 @@ function bootApp() {
   nav('dash');
 }
 
-// ═══ SEED (background, batch write — only runs once on first ever open) ═══
+// ═══ SEED — runs only on very first open when DB is empty ═══
 function seedMedicines() {
   var seeds = [
     {name:'Paracetamol 500mg',category:'Tablet',unit:'Tab',purchasePrice:3,salePrice:5,stock:500,lowStockAlert:50,description:''},
@@ -445,13 +485,9 @@ function seedMedicines() {
     {name:'Surgical Gloves',category:'Surgical Supply',unit:'Pair',purchasePrice:20,salePrice:30,stock:100,lowStockAlert:15,description:''},
     {name:'Bandage Roll',category:'Surgical Supply',unit:'Roll',purchasePrice:18,salePrice:25,stock:5,lowStockAlert:10,description:''}
   ];
-  // Use a batch write — all 12 medicines in ONE single request
-  var batch = DB.batch();
-  seeds.forEach(function(m) {
-    var ref = DB.collection('medicines').doc();
-    batch.set(ref, Object.assign({}, m, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
-  });
-  batch.commit().catch(function(e){ console.warn('Seed error:', e); });
+  // All in parallel — fast
+  Promise.all(seeds.map(function(m){ return fbAdd('medicines', m); }))
+    .catch(function(e){ console.warn('Seed error:', e); });
 }
 
 // ═══ UTILS ═══
@@ -793,8 +829,8 @@ function buildRx() {
     rxMeds = meds.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
     return '<div class="pg-hdr"><h2>📋 Prescription (Rx)</h2></div>'
       +'<div class="tbar">'
-      +'<button class="tb active" onclick="stab('rxnew',this)">New Rx</button>'
-      +'<button class="tb" onclick="stab('rxhist',this);loadRxHist()">History</button>'
+      +'<button class="tb active" onclick="stab(&apos;rxnew&apos;,this)">New Rx</button>'
+      +'<button class="tb" onclick="stab(&apos;rxhist&apos;,this);loadRxHist()">History</button>'
       +'</div>'
       +'<div id="tc-rxnew" class="tc active">'
       // Patient details
@@ -1075,7 +1111,12 @@ function rxViewOld(rx){
   document.getElementById('rx-advice').value = rx.advice||'';
   document.getElementById('rx-drname').value = rx.doctorName||'Dr. Ayat';
   document.getElementById('rx-date').value   = rx.date||today();
-  stab('rxnew', document.querySelector('[onclick*="rxnew"]'));
+  // switch to new rx tab
+  document.querySelectorAll('.tbar .tb').forEach(function(b){b.classList.remove('active');});
+  var firstTab=document.querySelector('#tc-rxnew');
+  if(firstTab){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});firstTab.classList.add('active');}
+  var firstBtn=document.querySelector('.tbar .tb');
+  if(firstBtn)firstBtn.classList.add('active');
   rxRenderCart();
   setTimeout(rxPreview, 100);
 }
