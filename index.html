@@ -7,7 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Ayat Surgical Clinic</title>
 
-<!-- No external scripts needed — uses Firestore REST API via fetch() -->
+<!-- Firebase SDK v8 compat — works on Vercel/GitHub Pages (https) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Nunito:wght@400;500;600;700;800&display=swap');
@@ -342,157 +344,76 @@ textarea{resize:vertical;min-height:65px}
 
 <script>
 // ═══════════════════════════════════════════════════════
-// FIRESTORE REST API — No Firebase SDK, no external scripts
-// Works from local HTML file on Android Chrome
+// FIREBASE SDK v8 — Works on Vercel / GitHub Pages (https)
 // ═══════════════════════════════════════════════════════
-var API_KEY  = 'AIzaSyDEWGSkWPLDNjl46-_-ZQhzDF9Us4YJ89U';
-var PROJECT  = 'ayat-clinic';
-var BASE_URL = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents/';
+var DB = null;
 
-// ── Convert Firestore REST document → plain JS object ──
-function fromFS(doc) {
-  var obj = { _id: doc.name.split('/').pop() };
-  var fields = doc.fields || {};
-  Object.keys(fields).forEach(function(k) {
-    var v = fields[k];
-    if      ('stringValue'    in v) obj[k] = v.stringValue;
-    else if ('integerValue'   in v) obj[k] = Number(v.integerValue);
-    else if ('doubleValue'    in v) obj[k] = Number(v.doubleValue);
-    else if ('booleanValue'   in v) obj[k] = v.booleanValue;
-    else if ('timestampValue' in v) obj[k] = v.timestampValue;
-    else if ('nullValue'      in v) obj[k] = null;
-    else obj[k] = v;
-  });
-  return obj;
-}
-
-// ── Convert plain JS object → Firestore REST fields ──
-function toFS(obj) {
-  var fields = {};
-  Object.keys(obj).forEach(function(k) {
-    if (k === '_id') return;
-    var v = obj[k];
-    if      (v === null || v === undefined)     fields[k] = { nullValue: null };
-    else if (typeof v === 'boolean')            fields[k] = { booleanValue: v };
-    else if (typeof v === 'number') {
-      if (Number.isInteger(v))                  fields[k] = { integerValue: String(v) };
-      else                                      fields[k] = { doubleValue: v };
-    }
-    else if (typeof v === 'string')             fields[k] = { stringValue: v };
-    else                                        fields[k] = { stringValue: String(v) };
-  });
-  return fields;
-}
-
-function apiURL(col, id) {
-  var url = BASE_URL + col;
-  if (id) url += '/' + id;
-  return url + '?key=' + API_KEY;
+function initFirebase() {
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey:    'AIzaSyDEWGSkWPLDNjl46-_-ZQhzDF9Us4YJ89U',
+      authDomain:'ayat-clinic.firebaseapp.com',
+      projectId: 'ayat-clinic'
+    });
+  }
+  DB = firebase.firestore();
 }
 
 function setSyncing(v) { var d=document.getElementById('syncdot'); if(d) d.className=v?'on busy':'on'; }
 
-// ADD document (POST → auto ID)
 function fbAdd(col, data) {
   setSyncing(true);
-  var body = { fields: toFS(Object.assign({}, data, { createdAt: new Date().toISOString() })) };
-  return fetch(BASE_URL + col + '?key=' + API_KEY, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  }).then(function(r) {
-    if (!r.ok) return r.text().then(function(t){ throw new Error(t); });
-    return r.json();
-  }).then(function(doc) {
-    setSyncing(false);
-    return doc.name.split('/').pop();
-  }).catch(function(e){ setSyncing(false); throw e; });
+  return DB.collection(col)
+    .add(Object.assign({}, data, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }))
+    .then(function(r){ setSyncing(false); return r.id; })
+    .catch(function(e){ setSyncing(false); throw e; });
 }
 
-// UPDATE document (PATCH)
 function fbUpdate(col, id, data) {
   setSyncing(true);
-  var fields = toFS(data);
-  var fieldPaths = Object.keys(fields).map(function(k){ return 'updateMask.fieldPaths=' + k; }).join('&');
-  var url = BASE_URL + col + '/' + id + '?' + fieldPaths + '&key=' + API_KEY;
-  return fetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields: fields })
-  }).then(function(r) {
-    setSyncing(false);
-    if (!r.ok) return r.text().then(function(t){ throw new Error(t); });
-  }).catch(function(e){ setSyncing(false); throw e; });
-}
-
-// DELETE document
-function fbDelete(col, id) {
-  setSyncing(true);
-  return fetch(BASE_URL + col + '/' + id + '?key=' + API_KEY, { method: 'DELETE' })
+  return DB.collection(col).doc(id).update(data)
     .then(function(){ setSyncing(false); })
     .catch(function(e){ setSyncing(false); throw e; });
 }
 
-// GET ALL documents in collection
-function fbGetAll(col) {
-  return fetch(BASE_URL + col + '?key=' + API_KEY + '&pageSize=300')
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      if (!data.documents) return [];
-      return data.documents.map(fromFS);
-    });
+function fbDelete(col, id) {
+  setSyncing(true);
+  return DB.collection(col).doc(id).delete()
+    .then(function(){ setSyncing(false); })
+    .catch(function(e){ setSyncing(false); throw e; });
 }
 
-// QUERY: where field == value (uses Firestore runQuery)
+function fbGetAll(col) {
+  return DB.collection(col).get().then(function(snap){
+    return snap.docs.map(function(d){ return Object.assign({}, d.data(), { _id: d.id }); });
+  });
+}
+
 function fbWhere(col, field, op, value) {
-  var opMap = { '==': 'EQUAL', '<': 'LESS_THAN', '<=': 'LESS_THAN_OR_EQUAL', '>': 'GREATER_THAN', '>=': 'GREATER_THAN_OR_EQUAL' };
-  var fsOp = opMap[op] || 'EQUAL';
-  var body = {
-    structuredQuery: {
-      from: [{ collectionId: col }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: field },
-          op: fsOp,
-          value: typeof value === 'number'
-            ? (Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value })
-            : { stringValue: value }
-        }
-      }
-    }
-  };
-  var runQueryURL = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents:runQuery?key=' + API_KEY;
-  return fetch(runQueryURL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  }).then(function(r){ return r.json(); })
-  .then(function(rows){
-    if (!Array.isArray(rows)) return [];
-    return rows.filter(function(r){ return r.document; }).map(function(r){ return fromFS(r.document); });
+  return DB.collection(col).where(field, op, value).get().then(function(snap){
+    return snap.docs.map(function(d){ return Object.assign({}, d.data(), { _id: d.id }); });
   });
 }
 
 // ═══ AUTO-CONNECT ON PAGE LOAD ═══
 window.addEventListener('load', function() {
   showConn('Connecting...');
-  // Test connection then seed then boot
-  fetch(BASE_URL + 'medicines?key=' + API_KEY + '&pageSize=1')
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function() {
-      showConn('Loading data...');
-      return seedMedicines();
-    })
-    .then(function() {
-      bootApp();
-    })
-    .catch(function(e) {
-      document.getElementById('conn-txt').textContent = '❌ Connection failed. Check internet and try again.';
-      console.error(e);
-    });
+  try {
+    initFirebase();
+    DB.collection('medicines').limit(1).get()
+      .then(function() {
+        showConn('Loading data...');
+        return seedMedicines();
+      })
+      .then(function() { bootApp(); })
+      .catch(function(e) {
+        document.getElementById('conn-txt').textContent = '❌ Connection failed: ' + e.message;
+        console.error(e);
+      });
+  } catch(e) {
+    document.getElementById('conn-txt').textContent = '❌ Error: ' + e.message;
+    console.error(e);
+  }
 });
 
 function showConn(msg) { document.getElementById('conn-txt').textContent=msg||'Connecting...'; document.getElementById('conn-overlay').classList.add('show'); }
